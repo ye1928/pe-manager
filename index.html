@@ -1,0 +1,1492 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>投研助手 · 全生命周期投资管理系统</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+
+<!-- ========== SIDEBAR ========== -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo-title">📊 投研助手</div>
+    <div class="logo-sub">全生命周期投资管理</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-item active" data-page="overview">
+      <span class="nav-icon">📊</span>总览
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">投资管理</div>
+    <div class="nav-item" data-page="pe-fund">
+      <span class="nav-icon">🏦</span>基金
+    </div>
+    <div class="nav-item" data-page="stock">
+      <span class="nav-icon">📈</span>股票
+    </div>
+    <div class="nav-item" data-page="futures">
+      <span class="nav-icon">📦</span>期货
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">研究工具</div>
+    <div class="nav-item" data-page="news">
+      <span class="nav-icon">📰</span>研报资讯
+      <span class="nav-badge yellow" id="news-pending-badge" style="display:none;">0</span>
+    </div>
+    <div class="nav-item" data-page="attribution">
+      <span class="nav-icon">🎯</span>归因分析
+    </div>
+    <div class="nav-item" data-page="calendar">
+      <span class="nav-icon">📅</span>投资日历
+    </div>
+    <div class="nav-item" data-page="vote">
+      <span class="nav-icon">🎭</span>大师投票席
+    </div>
+    <div class="nav-item" data-page="knowledge">
+      <span class="nav-icon">📚</span>个人知识库
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    数据存储于本地 · <span id="storage-size">0KB</span>
+  </div>
+</div>
+
+<!-- ========== MAIN ========== -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title">
+      <span id="page-icon">🏦</span>
+      <span id="page-title">基金</span>
+      <span class="topbar-sub" id="page-sub">全生命周期管理</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-date" id="today-date"></div>
+      <button class="btn btn-secondary" id="btn-export-data" title="导出所有数据">📤 导出</button>
+      <button class="btn btn-secondary" id="btn-import-data" title="从文件恢复数据">📥 导入</button>
+      <input type="file" id="import-file-input" accept=".json" style="display:none">
+      <button class="btn btn-primary" id="btn-add-main">＋ 新增</button>
+    </div>
+  </div>
+
+  <!-- ====== OVERVIEW PAGE ====== -->
+  <div class="page active" id="page-overview">
+    <div id="dashboard-content"></div>
+  </div>
+
+  <!-- ====== PE FUND PAGE ====== -->
+  <div class="page" id="page-pe-fund">
+    <!-- 汇总统计 -->
+    <div class="stats-grid" id="pe-stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">持仓基金数</div>
+        <div class="stat-value" id="stat-fund-count">0</div>
+        <div class="stat-sub">只基金</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">合计投入本金</div>
+        <div class="stat-value" id="stat-total-cost">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card red" id="card-net" onclick="openPnlDetail('net')" style="cursor:pointer;">
+        <div class="stat-label">综合收益</div>
+        <div class="stat-value" id="stat-total-pnl">¥0</div>
+        <div class="stat-sub" id="stat-pnl-breakdown" style="font-size:11px;line-height:1.6;">浮动 +0.00万 / 已实现 +0.00万</div>
+      </div>
+    </div>
+
+    <!-- 阶段Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="holding">🔵 持仓中</div>
+      <div class="tab" data-tab="tracking">🔍 投前跟踪</div>
+      <div class="tab" data-tab="exited">✅ 已退出</div>
+    </div>
+
+    <!-- 基金列表 -->
+    <div id="pe-fund-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;"></div>
+  </div>
+
+  <!-- ====== STOCK PAGE ====== -->
+  <div class="page" id="page-stock">
+    <!-- 统计卡片 -->
+    <div id="stock-stats-bar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+      <div class="stat-card">
+        <div class="stat-label">持仓市值</div>
+        <div class="stat-value" id="stat-stock-value">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card cyan">
+        <div class="stat-label">持仓浮动盈亏</div>
+        <div class="stat-value" id="stat-stock-float">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">已实现盈亏</div>
+        <div class="stat-value" id="stat-stock-realized">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">总体净盈亏</div>
+        <div class="stat-value" id="stat-stock-pnl">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+    </div>
+
+    <div class="tabs" id="stock-tabs" style="margin-bottom:12px;">
+      <div class="tab active" data-stock-tab="holding">🔵 持仓中</div>
+      <div class="tab" data-stock-tab="watchlist">⭐ 自选池</div>
+      <div class="tab" data-stock-tab="sold">✅ 已卖出</div>
+    </div>
+    <div id="stock-list-area"></div>
+
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <div class="section-title">📋 交易记录</div>
+      <div id="stock-trade-list" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- ====== FUTURES PAGE ====== -->
+  <div class="page" id="page-futures">
+    <!-- 统计卡片 -->
+    <div id="futures-stats-bar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+      <div class="stat-card">
+        <div class="stat-label">持仓保证金</div>
+        <div class="stat-value" id="stat-futures-margin">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card cyan">
+        <div class="stat-label">浮动盈亏</div>
+        <div class="stat-value" id="stat-futures-float">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">已平仓盈亏</div>
+        <div class="stat-value" id="stat-futures-realized">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">总体净盈亏</div>
+        <div class="stat-value" id="stat-futures-pnl">¥0</div>
+        <div class="stat-sub">万元</div>
+      </div>
+    </div>
+
+    <div class="tabs" id="futures-tabs" style="margin-bottom:12px;">
+      <div class="tab active" data-futures-tab="holding">🔵 持仓中</div>
+      <div class="tab" data-futures-tab="watchlist">⭐ 关注品种</div>
+      <div class="tab" data-futures-tab="closed">✅ 已平仓</div>
+    </div>
+    <div id="futures-list-area"></div>
+
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <div class="section-title">📋 成交记录</div>
+      <div id="futures-trade-list" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- ====== NEWS PAGE ====== -->
+  <div class="page" id="page-news">
+    <!-- 顶部操作栏 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="news-tabs" id="news-view-tabs">
+        <div class="tab active" data-news-view="timeline">📅 时间线</div>
+        <div class="tab" data-news-view="source">📂 按来源</div>
+        <div class="tab" data-news-view="list">📋 列表</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="btn-add-article">＋ 录入文章</button>
+        <button class="btn btn-secondary" id="btn-news-stats">📊 统计</button>
+      </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="news-filter-bar" id="news-filter-bar">
+      <select class="news-filter-select" id="news-filter-type">
+        <option value="">全部类型</option>
+        <option value="report">📑 研报</option>
+        <option value="wechat">💬 公众号</option>
+      </select>
+      <select class="news-filter-select" id="news-filter-source">
+        <option value="">全部来源</option>
+      </select>
+      <select class="news-filter-select" id="news-filter-tag">
+        <option value="">全部标签</option>
+      </select>
+      <select class="news-filter-select" id="news-filter-verification">
+        <option value="">全部状态</option>
+        <option value="pending">待验证</option>
+        <option value="correct">验证正确</option>
+        <option value="wrong">验证错误</option>
+      </select>
+      <input type="text" class="news-filter-input" id="news-search" placeholder="搜索标题/摘要..." />
+    </div>
+
+    <!-- 内容区域 -->
+    <div id="news-content-area">
+      <!-- 时间线视图 -->
+      <div id="news-view-timeline" class="news-view"></div>
+      <!-- 来源视图 -->
+      <div id="news-view-source" class="news-view" style="display:none;"></div>
+      <!-- 列表视图 -->
+      <div id="news-view-list" class="news-view" style="display:none;"></div>
+    </div>
+
+    <!-- 空状态 -->
+    <div id="news-empty-state" class="empty-state" style="display:none;">
+      <div class="icon">📰</div>
+      <div class="title">暂无资讯文章</div>
+      <div class="desc">点击右上角"录入文章"开始收集投研资讯</div>
+    </div>
+  </div>
+
+  <!-- ====== ATTRIBUTION PAGE ====== -->
+  <div class="page" id="page-attribution">
+    <!-- Tab 切换 -->
+    <div class="attr-tabs" style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);padding:4px;border-radius:8px;width:fit-content;">
+      <button class="attr-tab active" data-attr-tab="pnl">📊 收益归因</button>
+      <button class="attr-tab" data-attr-tab="correlation">🔗 相关性分析</button>
+      <button class="attr-tab" data-attr-tab="navfit">📈 净值拟合</button>
+      <button class="attr-tab" data-attr-tab="portfolio">📊 组合</button>
+      <button class="attr-tab" data-attr-tab="period">📅 周期收益</button>
+    </div>
+
+    <!-- ====== PNL Tab ====== -->
+    <div id="attr-tab-pnl">
+      <div id="attribution-overview" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 收益来源分布</div></div>
+          <div class="chart-container" style="height:280px;"><canvas id="attribution-source-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏆 基金/股票/期货净盈亏排名</div></div>
+          <div class="chart-container" style="height:280px;"><canvas id="attribution-rank-chart"></canvas></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">📈 资产配置占比</div></div>
+          <div class="chart-container" style="height:240px;"><canvas id="attribution-allocation-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📉 盈亏分布</div></div>
+          <div class="chart-container" style="height:240px;"><canvas id="attribution-pnl-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== CORRELATION Tab ====== -->
+    <div id="attr-tab-correlation" style="display:none;">
+      <div id="corr-controls" style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text3);">基金筛选：</span>
+        <div id="corr-fund-selector" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button class="btn btn-sm btn-secondary" id="corr-select-all" style="margin-left:8px;">全选</button>
+        <button class="btn btn-sm btn-secondary" id="corr-select-clear">清空</button>
+      </div>
+      <div id="corr-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">🔥 相关性热力图</div>
+          <div style="font-size:11px;color:var(--text3);">基于日收益率计算皮尔逊相关系数</div>
+        </div>
+        <div id="corr-heatmap-container" style="padding:16px;overflow-x:auto;">
+          <div id="corr-heatmap" style="min-width:400px;"></div>
+        </div>
+      </div>
+      <div id="corr-high-pairs" class="card">
+        <div class="card-header"><div class="card-title">⚡ 高相关性组合</div></div>
+        <div id="corr-pairs-list" style="padding:12px;"></div>
+      </div>
+    </div>
+
+    <!-- ====== NAV FIT Tab ====== -->
+    <div id="attr-tab-navfit" style="display:none;">
+      <div id="navfit-controls" style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text3);">净值曲线（勾选控制曲线显示）：</span>
+        <div id="navfit-fund-selector" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button class="btn btn-sm btn-secondary" id="navfit-select-all" style="margin-left:8px;">全选</button>
+        <button class="btn btn-sm btn-secondary" id="navfit-select-clear">清空</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-left:16px;">
+          <input type="checkbox" id="navfit-compare-mode" />
+          横向对比（以最晚起点归一化）
+        </label>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:16px;">
+          <span style="font-size:12px;color:var(--text3);">区间：</span>
+          <input type="date" id="navfit-start-date" class="form-input" style="width:130px;padding:4px 8px;font-size:12px;" />
+          <span style="font-size:12px;color:var(--text3);">~</span>
+          <input type="date" id="navfit-end-date" class="form-input" style="width:130px;padding:4px 8px;font-size:12px;" />
+          <button class="btn btn-sm btn-secondary" id="navfit-date-clear" style="padding:4px 10px;font-size:11px;">重置</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:16px;">
+          <span style="font-size:12px;color:var(--text3);">基准：</span>
+          <select id="navfit-benchmark" class="form-input" style="padding:4px 8px;font-size:12px;min-width:140px;">
+            <option value="">-- 请选择基准基金 --</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:2px;margin-left:16px;background:var(--bg3);padding:2px;border-radius:6px;">
+          <button class="nav-mode-btn active" id="navfit-mode-unit" onclick="switchNavFitMode('unit')" style="padding:4px 10px;font-size:11px;border:none;background:transparent;color:var(--text2);border-radius:4px;cursor:pointer;">单位净值</button>
+          <button class="nav-mode-btn" id="navfit-mode-cum" onclick="switchNavFitMode('cum')" style="padding:4px 10px;font-size:11px;border:none;background:transparent;color:var(--text2);border-radius:4px;cursor:pointer;">累计净值</button>
+        </div>
+      </div>
+      <div id="navfit-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;"></div>
+      <div id="navfit-analysis" style="margin-bottom:16px;"></div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📈 净值拟合曲线</div>
+          <div id="navfit-chart-desc" style="font-size:11px;color:var(--text3);">起点归一化至 1.0，可观察相对走势差异</div>
+        </div>
+        <div class="chart-container" style="height:360px;padding:12px;">
+          <canvas id="navfit-chart"></canvas>
+        </div>
+      </div>
+      <div id="navfit-stats" class="card">
+        <div class="card-header"><div class="card-title">📋 拟合统计</div></div>
+        <div id="navfit-stats-table" style="padding:12px;overflow-x:auto;"></div>
+      </div>
+    </div>
+
+    <!-- ====== PORTFOLIO COMBINED Tab ====== -->
+    <div id="attr-tab-portfolio" style="display:none;">
+      <!-- 子 Tab 切换 -->
+      <div class="portfolio-sub-tabs" style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);padding:4px;border-radius:8px;width:fit-content;">
+        <button class="portfolio-sub-tab active" onclick="switchPortfolioSubTab('build')">🎯 组合构建</button>
+        <button class="portfolio-sub-tab" onclick="switchPortfolioSubTab('contrib')">📊 贡献分析</button>
+      </div>
+
+      <!-- 子Tab：组合构建 -->
+      <div id="portfolio-subtab-build">
+        <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;">
+          <!-- Left: allocation panel -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">🎯 基金配置</div></div>
+            <div style="padding:12px;">
+              <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">从下方基金列表勾选，点击卡片右上角"加入配置"</div>
+              <div id="portfolio-pool" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;"></div>
+              <div id="portfolio-allocations"></div>
+              <div id="portfolio-total-bar" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:12px;color:var(--text2);">配置总额</span>
+                  <span id="portfolio-total-amount" style="font-size:14px;font-weight:700;color:var(--accent);">0 万</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Right: chart + stats -->
+          <div>
+            <div id="portfolio-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;"></div>
+            <div class="card" style="margin-bottom:12px;">
+              <div class="card-header">
+                <div class="card-title">📈 组合净值曲线</div>
+                <div id="portfolio-chart-desc" style="font-size:11px;color:var(--text3);">组合净值以各基金按配置权重加权计算，起点归一化至 1.0</div>
+              </div>
+              <div style="padding:12px;"><canvas id="portfolio-chart" style="height:320px;"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">📋 组合统计</div></div>
+              <div id="portfolio-stats" style="padding:12px;overflow-x:auto;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 子Tab：贡献分析 -->
+      <div id="portfolio-subtab-contrib" style="display:none;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">
+          选择你的持仓基金（组合基准），再勾选1只候选基金，系统将分析加入后对组合相关性及绩效的影响。
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text3);">持仓基金（组合基准）：</span>
+          <div id="contrib-held-selector" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+          <span style="font-size:12px;color:var(--text3);margin-left:16px;">候选基金（待评估）：</span>
+          <div id="contrib-candidate-selector" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+          <button class="btn btn-sm btn-primary" id="contrib-analyze-btn" style="margin-left:8px;">开始分析</button>
+        </div>
+
+        <div id="contrib-result" style="display:none;">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;" id="contrib-summary"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div class="card">
+              <div class="card-header"><div class="card-title">相关性变化</div></div>
+              <div style="padding:12px;font-size:13px;line-height:2;" id="contrib-corr-detail"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">组合绩效模拟（加入前后）</div></div>
+              <div style="padding:12px;" id="contrib-perf-detail"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-header"><div class="card-title">组合净值对比（归一化）</div></div>
+            <div class="chart-container" style="height:300px;"><canvas id="contrib-chart"></canvas></div>
+          </div>
+        </div>
+
+        <div id="contrib-placeholder" style="text-align:center;padding:60px 20px;color:var(--text3);font-size:13px;">
+          请选择持仓基金（至少2只）和1只候选基金，然后点击"开始分析"
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== PERIOD RETURN Tab ====== -->
+    <div id="attr-tab-period" style="display:none;">
+      <!-- 控制栏 -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:500;">📅 周期收益分析</span>
+        <div style="display:flex;gap:2px;background:var(--bg3);padding:2px;border-radius:6px;">
+          <button class="btn btn-sm" id="period-mode-all" style="font-size:11px;" onclick="setPeriodMode('all')">全部</button>
+          <button class="btn btn-sm" id="period-mode-year" style="font-size:11px;" onclick="setPeriodMode('year')">按年度</button>
+          <button class="btn btn-sm" id="period-mode-custom" style="font-size:11px;" onclick="setPeriodMode('custom')">自定义</button>
+        </div>
+        <div id="period-custom-range" style="display:none;gap:6px;align-items:center;">
+          <input type="date" id="period-start" style="font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);" />
+          <span style="font-size:11px;color:var(--text3);">至</span>
+          <input type="date" id="period-end" style="font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg2);color:var(--text1);" />
+          <button class="btn btn-sm btn-secondary" onclick="renderPeriodAnalysis()" style="font-size:11px;">查询</button>
+        </div>
+      </div>
+      <!-- 汇总卡片 -->
+      <div id="period-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+      <!-- 图表 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-title">📊 各基金周期收益率</div>
+          <div id="period-chart-desc" style="font-size:11px;color:var(--text3);">按年度查看每只基金的收益表现</div>
+        </div>
+        <div class="chart-container" style="height:300px;padding:12px;">
+          <canvas id="period-chart"></canvas>
+        </div>
+      </div>
+      <!-- 明细表格 -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 收益明细</div></div>
+        <!-- 组合年度汇总 -->
+        <div id="period-combo-summary" style="padding:0 12px;"></div>
+        <div style="margin:0 12px;border-top:1px solid var(--border);"></div>
+        <!-- 各基金明细 -->
+        <div id="period-table-wrap" style="padding:12px 12px 12px;overflow-x:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== CALENDAR PAGE ====== -->
+  <div class="page" id="page-calendar"></div>
+
+  <!-- ====== VOTE ADVISOR PAGE ====== -->
+  <div class="page" id="page-vote">
+    <!-- 输入区 -->
+    <div class="vote-input-card">
+      <div class="section-title">🎭 输入你的头寸想法</div>
+      <div class="form-grid" style="gap:12px;">
+        <div class="form-group full">
+          <label class="form-label">头寸描述（越详细越好，可包含行业/估值/情绪/地缘等关键词）</label>
+          <textarea class="form-input" id="vote-position" rows="3"
+            placeholder="描述你的投资想法，例如：买入宁德时代，PE 18倍，新能源车渗透率持续提升，短期受碳酸锂价格下跌拖累..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">头寸类型</label>
+          <select class="form-input" id="vote-type">
+            <option value="stock_long">📈 股票多头</option>
+            <option value="stock_short">📉 股票空头</option>
+            <option value="futures_long">📦 期货多头</option>
+            <option value="futures_short">📦 期货空头</option>
+            <option value="fund_buy">🏦 买入基金</option>
+            <option value="fund_sell">🏦 赎回基金</option>
+            <option value="macro">🌍 宏观/大类资产</option>
+            <option value="arbitrage">⚖️ 套利/对冲</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">时间周期</label>
+          <select class="form-input" id="vote-horizon">
+            <option value="short">⚡ 短线（几天~几周）</option>
+            <option value="medium" selected>📅 中线（几月~几年）</option>
+            <option value="long">🏔️ 长线（5年以上）</option>
+          </select>
+        </div>
+        <div class="form-group full" style="align-self:end;">
+          <button class="btn btn-primary" id="btn-run-vote" style="width:100%;padding:10px;font-size:14px;">
+            🎭 请大师们基于各自理念投票打分
+          </button>
+        </div>
+      </div>
+      <div class="alert-box" style="margin-top:12px;font-size:11px;line-height:1.6;">
+        💡 本模块是基于每位大师真实投资框架的决策模拟，并非实时行情或AI预测。评分反映的是"如果按此大师的思维框架分析，会如何评估这个机会"。
+      </div>
+    </div>
+
+    <!-- Tab 切换 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="tabs" id="vote-tabs">
+        <div class="tab active" data-vote-tab="current">📝 当前投票</div>
+        <div class="tab" data-vote-tab="history">📜 历史记录 <span id="vote-history-count" style="opacity:0.6;font-size:11px;"></span></div>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btn-save-vote" style="display:none;">💾 保存此投票</button>
+    </div>
+
+    <!-- 结果区 -->
+    <div id="vote-result">
+      <div id="vote-summary-bar" style="display:none;"></div>
+      <div id="vote-investors-grid" class="vote-investor-grid"></div>
+    </div>
+
+    <!-- 历史记录区 -->
+    <div id="vote-history-panel" style="display:none;"></div>
+  </div>
+
+  <!-- ====== KNOWLEDGE PAGE ====== -->
+  <div class="page" id="page-knowledge">
+    <!-- 顶部操作栏 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div class="tabs" id="knowledge-tabs">
+        <div class="tab active" data-knowledge-tab="all">📋 全部</div>
+        <div class="tab" data-knowledge-tab="category">📁 按分类</div>
+        <div class="tab" data-knowledge-tab="timeline">📅 时间线</div>
+        <div class="tab" data-knowledge-tab="analysis">🤖 AI分析</div>
+        <div class="tab" data-knowledge-tab="advisor">🎯 决策助手</div>
+      </div>
+      <button class="btn btn-primary" id="btn-add-knowledge">＋ 新增知识</button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid" id="knowledge-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;"></div>
+
+    <!-- 筛选栏 -->
+    <div class="news-filter-bar" id="knowledge-filter-bar" style="display:flex;gap:12px;margin-bottom:16px;">
+      <select class="news-filter-select" id="knowledge-filter-category">
+        <option value="">全部分类</option>
+        <option value="投资理念">💡 投资理念</option>
+        <option value="技术分析">📊 技术分析</option>
+        <option value="宏观经济">🌍 宏观经济</option>
+        <option value="心得体会">💭 心得体会</option>
+        <option value="行业研究">🏭 行业研究</option>
+        <option value="其他">📌 其他</option>
+      </select>
+      <input type="text" class="news-filter-input" id="knowledge-search" placeholder="搜索标题/内容..." />
+    </div>
+
+    <!-- 内容区域 -->
+    <div id="knowledge-content-area">
+      <!-- 全部视图 -->
+      <div id="knowledge-view-all"></div>
+      <!-- 分类视图 -->
+      <div id="knowledge-view-category" style="display:none;"></div>
+      <!-- 时间线视图 -->
+      <div id="knowledge-view-timeline" style="display:none;"></div>
+      <!-- AI分析视图 -->
+      <div id="knowledge-view-analysis" style="display:none;"></div>
+      <!-- 决策助手视图 -->
+      <div id="knowledge-view-advisor" style="display:none;"></div>
+    </div>
+
+    <!-- 空状态 -->
+    <div id="knowledge-empty-state" class="empty-state" style="display:none;">
+      <div class="icon">📚</div>
+      <div class="title">知识库为空</div>
+      <div class="desc">点击右上角"新增知识"开始记录你的投资心得和学到的东西</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODALS ========== -->
+
+<!-- 新增/编辑基金 Modal -->
+<div class="modal-overlay" id="modal-fund">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-fund-title">新增基金</div>
+      <button class="modal-close" data-close="modal-fund">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">基金名称 <span class="required">*</span></label>
+        <input class="form-input" id="fund-name" placeholder="如：永利6号" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">基金公司</label>
+        <input class="form-input" id="fund-company" placeholder="如：永利资产" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">策略类型</label>
+        <select class="form-input" id="fund-strategy">
+          <option value="股票多头">股票多头</option>
+          <option value="量化中性">量化中性</option>
+          <option value="CTA">CTA</option>
+          <option value="套利">套利</option>
+          <option value="固收增强">固收增强</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">业绩报酬（%）</label>
+        <input class="form-input" type="number" id="fund-perf-fee" placeholder="如：20（不计提填0）" min="0" max="100" step="0.1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">状态</label>
+        <select class="form-input" id="fund-status">
+          <option value="tracking">投前跟踪</option>
+          <option value="holding">持仓中</option>
+          <option value="exited">已退出</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <textarea class="form-input" id="fund-note" placeholder="投资逻辑、风险提示等"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-fund">取消</button>
+      <button class="btn btn-primary" id="btn-save-fund">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 盈亏明细 Modal -->
+<div class="modal-overlay" id="modal-pnl-detail">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">📊 盈亏明细拆解</div>
+      <button class="modal-close" data-close="modal-pnl-detail">×</button>
+    </div>
+    <div class="modal-body" id="pnl-detail-body" style="font-size:13px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close="modal-pnl-detail">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增申购批次 Modal -->
+<div class="modal-overlay" id="modal-batch">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">新增申购批次</div>
+      <button class="modal-close" data-close="modal-batch">✕</button>
+    </div>
+    <div class="alert-box">
+      💡 每次申购单独记录，系统自动计算份额和各批次收益
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">申购日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="batch-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">申购金额（万元）<span class="required">*</span></label>
+        <input class="form-input" type="number" id="batch-amount" placeholder="0" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">成本净值 <span class="required">*</span></label>
+        <input class="form-input" type="number" id="batch-nav" placeholder="1.0000" step="0.0001" />
+        <span class="form-hint">申购时的单位净值，用于计算份额</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">份额（自动计算）</label>
+        <input class="form-input" id="batch-shares-preview" placeholder="填写金额和净值后自动算" readonly style="color:var(--text3)" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <input class="form-input" id="batch-note" placeholder="如：首次认购、追加申购等" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-batch">取消</button>
+      <button class="btn btn-primary" id="btn-save-batch">添加批次</button>
+    </div>
+  </div>
+</div>
+
+<!-- 更新净值 Modal -->
+<div class="modal-overlay" id="modal-nav">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">更新净值</div>
+      <button class="modal-close" data-close="modal-nav">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">净值日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="nav-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">单位净值</label>
+        <input class="form-input" type="number" id="nav-unit-value" placeholder="1.0000" step="0.0001" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">累计净值</label>
+        <input class="form-input" type="number" id="nav-cum-value" placeholder="累计净值（选填）" step="0.0001" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-nav">取消</button>
+      <button class="btn btn-primary" id="btn-save-nav">更新</button>
+    </div>
+  </div>
+</div>
+
+<!-- 标记退出 Modal -->
+<div class="modal-overlay" id="modal-exit-batch">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📤 标记批次退出</div>
+      <button class="modal-close" data-close="modal-exit-batch">✕</button>
+    </div>
+    <div class="alert-box" id="exit-batch-mode-hint">
+      💡 填写退出时的净值和日期，系统将把该批次的浮盈浮亏结算为已实现盈亏，并计算业绩报酬（如有）。<br/>
+      💡 支持部分退出：如果退出的份额小于总份额，原批次将保留剩余份额。
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="color:var(--text2);font-size:12px;margin-bottom:8px;">
+        当前持有份额：<strong id="exit-batch-current-shares">--</strong> 万份
+      </div>
+      <div class="form-group">
+        <label class="form-label">退出日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="exit-batch-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">退出净值 <span class="required">*</span></label>
+        <input class="form-input" type="number" id="exit-batch-nav" placeholder="退出时的单位净值" step="0.0001" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">退出份额 <span class="required">*</span></label>
+        <input class="form-input" type="number" id="exit-batch-shares" placeholder="留空或填0表示全部退出" step="0.0001" />
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">留空或0 = 退出全部份额</div>
+      </div>
+      <div class="form-group full" id="exit-batch-preview"></div>
+      <!-- 批量退出批次列表 -->
+      <div class="form-group full" id="exit-batch-list" style="display:none;"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-exit-batch">取消</button>
+      <button class="btn btn-danger" id="btn-confirm-exit-batch">确认退出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 记录分红 Modal -->
+<div class="modal-overlay" id="modal-dividend">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">记录分红</div>
+      <button class="modal-close" data-close="modal-dividend">✕</button>
+    </div>
+    <div class="alert-box">
+      💡 填写每份额分红金额，系统会按各批次持有份额自动计算实际分红收益
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">分红日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="div-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">每份额分红金额 <span class="required">*</span></label>
+        <input class="form-input" type="number" id="div-per-share" placeholder="如：0.1905" step="0.0001" />
+        <span class="form-hint">单位：元/份额</span>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <input class="form-input" id="div-note" placeholder="分红原因等" />
+      </div>
+    </div>
+    <div id="div-preview" style="display:none; margin-top:12px;">
+      <div class="divider"></div>
+      <div class="section-title">预估各批次分红收益</div>
+      <div id="div-preview-content"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-dividend">取消</button>
+      <button class="btn btn-primary" id="btn-save-dividend">记录分红</button>
+    </div>
+  </div>
+</div>
+
+<!-- 记录净值 Modal -->
+<div class="modal-overlay" id="modal-nav-history">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📊 净值历史</div>
+      <button class="modal-close" data-close="modal-nav-history">✕</button>
+    </div>
+    <div class="alert-box" id="nav-history-hint">
+      💡 维护完整净值序列，系统自动计算夏普、卡玛、最大回撤等绩效指标（需至少2条记录）。<br/>
+      💡 最大回撤需用<strong>累计净值</strong>计算。如有手动填写的累计净值，用蓝色显示；无累计净值时显示推算值（标注 *）。<br/>
+      💡 单条录入时，建议同时填写单位净值和累计净值，或至少填写一个。
+    </div>
+
+    <!-- 单条录入区 -->
+    <div style="background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text2);">📝 单条录入</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">净值日期 <span class="required">*</span></label>
+          <input class="form-input" type="date" id="nav-h-date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">单位净值 <span class="required">*</span></label>
+          <input class="form-input" type="number" id="nav-h-unit" placeholder="1.0000" step="0.0001" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">累计净值</label>
+          <input class="form-input" type="number" id="nav-h-cum" placeholder="累计净值（选填）" step="0.0001" />
+          <div id="nav-cum-hint" style="font-size:10px;color:var(--text3);margin-top:2px;"></div>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">备注</label>
+          <input class="form-input" id="nav-h-note" placeholder="如：月末估值、季末估值等" />
+        </div>
+      </div>
+      <div style="margin-top:10px;text-align:right;">
+        <button class="btn btn-primary" id="btn-save-nav-history">添加此条净值</button>
+      </div>
+    </div>
+
+    <!-- Excel导入区 -->
+    <div style="background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);">📥 Excel批量导入</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="import-nav-type" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text2);">
+            <option value="unit">单位净值</option>
+            <option value="cumulative">累计净值</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="btn-import-nav-excel">选择Excel文件</button>
+          <button class="btn btn-success btn-sm" id="btn-confirm-import-nav" style="display:none;">✓ 确认导入（<span id="import-count">0</span>条）</button>
+          <button class="btn btn-danger btn-sm" id="btn-cancel-import-nav" style="display:none;">✕ 取消</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.6;">
+        支持 .xlsx / .xls 文件，格式：<br/>
+        <strong>第一列=日期</strong>（必填，格式如 2024-01-01）<br/>
+        <strong>第二列=净值</strong>（必填，根据上方类型自动识别为单位净值或累计净值）<br/>
+        <strong>第三列=累计净值</strong>（可选，如导入单位净值时有累计净值则填入）<br/>
+        <strong>第四列=备注</strong>（可选）<br/>
+        💡 请先选择要导入的净值类型（单位净值或累计净值），再上传文件。同一天如有重复会自动跳过。
+      </div>
+      <!-- 导入预览 -->
+      <div id="nav-import-preview" style="display:none;margin-top:10px;">
+        <div class="batch-table-wrap" style="max-height:180px;overflow-y:auto;">
+          <table class="batch-table" id="nav-import-table">
+            <thead><tr><th>日期</th><th>净值</th><th>类型</th><th>累计净值</th><th>备注</th></tr></thead>
+            <tbody id="nav-import-tbody"></tbody>
+          </table>
+        </div>
+        <div id="nav-import-summary" style="margin-top:8px;font-size:11px;color:var(--text3);"></div>
+      </div>
+    </div>
+
+    <!-- 历史净值列表 -->
+    <div id="nav-history-list-wrap" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="section-title" style="margin:0;">当前净值序列（<span id="nav-count">0</span>条）</div>
+        <button class="btn btn-danger btn-sm" id="btn-clear-nav-history" title="清空所有净值历史" style="font-size:11px;padding:3px 8px;">🗑 清空</button>
+      </div>
+      <div class="batch-table-wrap" style="max-height:200px;overflow-y:auto;">
+        <table class="batch-table" id="nav-history-table">
+          <thead>
+            <tr><th>日期</th><th>单位净值</th><th>累计净值</th><th>备注</th><th></th></tr>
+          </thead>
+          <tbody id="nav-history-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-nav-history">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 净值编辑弹窗 -->
+<div class="modal-overlay" id="modal-edit-nav">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <div class="modal-title">✏️ 编辑净值</div>
+      <button class="modal-close" data-close="modal-edit-nav">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">净值日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="edit-nav-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">单位净值 <span class="required">*</span></label>
+        <input class="form-input" type="number" id="edit-nav-unit" placeholder="1.0000" step="0.0001" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">累计净值</label>
+        <input class="form-input" type="number" id="edit-nav-cum" placeholder="累计净值（选填）" step="0.0001" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <input class="form-input" id="edit-nav-note" placeholder="备注信息" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-edit-nav">取消</button>
+      <button class="btn btn-primary" id="btn-save-edit-nav">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 隐藏的文件输入 -->
+<input type="file" id="nav-excel-file-input" accept=".xlsx,.xls" style="display:none;" />
+
+<!-- ========== STOCK MODALS ========== -->
+
+<!-- 新增股票 Modal -->
+<div class="modal-overlay" id="modal-stock">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-stock-title">📈 新增股票</div>
+      <button class="modal-close" data-close="modal-stock">✕</button>
+    </div>
+    <div class="alert-box" id="stock-edit-hint" style="display:none;margin-bottom:12px;"></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">股票代码 <span class="required">*</span></label>
+        <input class="form-input" type="text" id="stock-code" placeholder="如：000001" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">股票名称 <span class="required">*</span></label>
+        <input class="form-input" type="text" id="stock-name" placeholder="如：平安银行" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">当前价格（元）<span class="required">*</span></label>
+        <input class="form-input" type="number" id="stock-price" placeholder="当前市价" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">成本价格（元）</label>
+        <input class="form-input" type="number" id="stock-cost" placeholder="买入均价" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">持仓数量（股）</label>
+        <input class="form-input" type="number" id="stock-quantity" placeholder="持有股数" step="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">交易市场</label>
+        <select class="form-input" id="stock-market">
+          <option value="A股">A股</option>
+          <option value="港股">港股</option>
+          <option value="美股">美股</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <textarea class="form-input" id="stock-note" placeholder="投资逻辑、关注理由等" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-stock">取消</button>
+      <button class="btn btn-primary" id="btn-save-stock">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 交易记录 Modal -->
+<div class="modal-overlay" id="modal-stock-trade">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-stock-trade-title">📝 记录交易</div>
+      <button class="modal-close" data-close="modal-stock-trade">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">交易类型 <span class="required">*</span></label>
+        <select class="form-input" id="stock-trade-type">
+          <option value="buy">买入</option>
+          <option value="sell">卖出</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">交易日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="stock-trade-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">交易价格（元）<span class="required">*</span></label>
+        <input class="form-input" type="number" id="stock-trade-price" placeholder="成交价" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">成交数量（股）<span class="required">*</span></label>
+        <input class="form-input" type="number" id="stock-trade-qty" placeholder="成交股数" step="1" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <input class="form-input" type="text" id="stock-trade-note" placeholder="如：止损/加仓/波段操作等" />
+      </div>
+    </div>
+    <div id="stock-trade-preview" style="margin:8px 0;padding:8px;background:var(--bg3);border-radius:6px;font-size:12px;color:var(--text2);"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-stock-trade">取消</button>
+      <button class="btn btn-primary" id="btn-save-stock-trade">确认记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== FUTURES MODALS ========== -->
+
+<!-- 新增期货合约 Modal -->
+<div class="modal-overlay" id="modal-futures">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-futures-title">📦 新增期货合约</div>
+      <button class="modal-close" data-close="modal-futures">✕</button>
+    </div>
+    <div class="alert-box" id="futures-edit-hint" style="display:none;margin-bottom:12px;"></div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">品种代码 <span class="required">*</span></label>
+        <input class="form-input" type="text" id="futures-code" placeholder="如：IF、CU、AU" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">合约名称 <span class="required">*</span></label>
+        <input class="form-input" type="text" id="futures-name" placeholder="如：沪深300、铜、黄金" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">合约乘数</label>
+        <input class="form-input" type="number" id="futures-multiplier" placeholder="如：300（IF）" step="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">当前价格（元/吨或点位）</label>
+        <input class="form-input" type="number" id="futures-price" placeholder="最新行情" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">开仓均价（元/吨）</label>
+        <input class="form-input" type="number" id="futures-cost" placeholder="持仓均价" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">持仓手数（张）</label>
+        <input class="form-input" type="number" id="futures-lots" placeholder="持有合约数" step="1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">保证金比例（%）</label>
+        <input class="form-input" type="number" id="futures-margin-rate" placeholder="如：12" step="0.1" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">方向</label>
+        <select class="form-input" id="futures-direction">
+          <option value="long">做多</option>
+          <option value="short">做空</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <textarea class="form-input" id="futures-note" placeholder="投资逻辑、策略等" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-futures">取消</button>
+      <button class="btn btn-primary" id="btn-save-futures">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 期货成交 Modal -->
+<div class="modal-overlay" id="modal-futures-trade">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-futures-trade-title">📝 记录成交</div>
+      <button class="modal-close" data-close="modal-futures-trade">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">交易类型 <span class="required">*</span></label>
+        <select class="form-input" id="futures-trade-type">
+          <option value="open">开仓</option>
+          <option value="close">平仓</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">交易日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="futures-trade-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">成交价格 <span class="required">*</span></label>
+        <input class="form-input" type="number" id="futures-trade-price" placeholder="成交价" step="0.01" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">成交手数（张）<span class="required">*</span></label>
+        <input class="form-input" type="number" id="futures-trade-qty" placeholder="成交合约数" step="1" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">备注</label>
+        <input class="form-input" type="text" id="futures-trade-note" placeholder="开仓原因/平仓理由等" />
+      </div>
+    </div>
+    <div id="futures-trade-preview" style="margin:8px 0;padding:8px;background:var(--bg3);border-radius:6px;font-size:12px;color:var(--text2);"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-futures-trade">取消</button>
+      <button class="btn btn-primary" id="btn-save-futures-trade">确认记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑文章 Modal -->
+<div class="modal-overlay" id="modal-article">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-article-title">📝 录入文章</div>
+      <button class="modal-close" data-close="modal-article">✕</button>
+    </div>
+
+    <!-- 步骤引导条 -->
+    <div style="display:flex;align-items:center;gap:0;margin-bottom:14px;">
+      <div id="step-indicator-1" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);background:rgba(59,130,246,0.1);padding:5px 12px;border-radius:20px 0 0 20px;border:1px solid rgba(59,130,246,0.3);">
+        <span style="width:18px;height:18px;background:var(--accent);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">1</span>粘贴内容
+      </div>
+      <div style="width:12px;height:1px;background:var(--border);"></div>
+      <div id="step-indicator-2" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text3);background:var(--bg3);padding:5px 12px;border:1px solid var(--border);">
+        <span style="width:18px;height:18px;background:var(--text3);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">2</span>AI分析
+      </div>
+      <div style="width:12px;height:1px;background:var(--border);"></div>
+      <div id="step-indicator-3" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text3);background:var(--bg3);padding:5px 12px;border-radius:0 20px 20px 0;border:1px solid var(--border);">
+        <span style="width:18px;height:18px;background:var(--text3);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;">3</span>保存归档
+      </div>
+    </div>
+
+    <!-- AI 分析区 -->
+    <div id="ai-analysis-zone" style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(59,130,246,0.08));border:1px solid rgba(99,102,241,0.25);border-radius:12px;padding:14px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:600;color:var(--accent2);">🤖 第一步：粘贴文章内容或链接</div>
+        <button class="btn btn-sm" id="btn-toggle-ai-zone" style="background:rgba(99,102,241,0.15);color:var(--accent2);border:none;font-size:11px;">收起</button>
+      </div>
+      <div id="ai-zone-body">
+        <!-- 链接快速识别 -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">📎 粘贴文章链接（自动识别公众号）</div>
+          <div style="display:flex;gap:8px;">
+            <input id="article-url-quick" class="form-input" style="font-size:12px;flex:1;" placeholder="粘贴微信公众号文章链接 https://mp.weixin.qq.com/..." />
+            <button class="btn btn-secondary btn-sm" id="btn-parse-url" style="flex-shrink:0;">🔍 识别</button>
+          </div>
+          <div id="url-parse-hint" style="font-size:11px;color:var(--text3);margin-top:5px;display:none;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">📄 粘贴文章正文（AI分析摘要/标签/情感）</div>
+        <textarea id="article-rawtext"
+          class="form-input"
+          rows="4"
+          style="font-size:12px;line-height:1.6;"
+          placeholder="把公众号文章正文粘贴到这里（不需要全文，有代表性的段落即可）&#10;AI 将自动帮你提取：摘要 · 标签 · 情感倾向 · 行情关联度"></textarea>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+          <button class="btn btn-primary btn-sm" id="btn-ai-analyze" style="background:linear-gradient(135deg,var(--accent2),var(--accent));">
+            ✨ 一键AI分析
+          </button>
+          <span id="ai-analyze-status" style="font-size:11px;color:var(--text3);"></span>
+        </div>
+        <!-- AI 分析结果预览 -->
+        <div id="ai-result-preview" style="display:none;margin-top:12px;background:var(--bg3);border-radius:8px;padding:12px;font-size:12px;"></div>
+      </div>
+    </div>
+
+    <!-- 基础字段 -->
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">来源类型 <span class="required">*</span></label>
+        <select class="form-input" id="article-type">
+          <option value="report">📑 研报</option>
+          <option value="wechat">💬 公众号</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">发布日期 <span class="required">*</span></label>
+        <input class="form-input" type="date" id="article-date" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">来源名称 <span class="required">*</span></label>
+        <input class="form-input" id="article-source" placeholder="研报：券商名/机构名；公众号：雪球、东方财富等" list="source-list" />
+        <datalist id="source-list"></datalist>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">文章标题 <span class="required">*</span></label>
+        <input class="form-input" id="article-title" placeholder="文章标题" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">文章链接 <span style="color:var(--text3);font-size:10px;margin-left:4px;">已从第一步自动填入</span></label>
+        <input class="form-input" id="article-url" placeholder="https://..." type="url" style="background:var(--bg3);" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">核心要点 / 摘要 <span style="color:var(--accent2);font-size:10px;margin-left:4px;">AI可自动生成</span></label>
+        <textarea class="form-input" id="article-summary" rows="3" placeholder="AI分析后自动填入，也可手动编辑"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">行情关联度 <span style="color:var(--accent2);font-size:10px;margin-left:4px;">AI自动评估</span></label>
+        <select class="form-input" id="article-relevance">
+          <option value="1">⭐ 低（与持仓无关）</option>
+          <option value="2">⭐⭐ 中低</option>
+          <option value="3" selected>⭐⭐⭐ 中</option>
+          <option value="4">⭐⭐⭐⭐ 中高</option>
+          <option value="5">⭐⭐⭐⭐⭐ 高（直接影响持仓）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">情感倾向 <span style="color:var(--accent2);font-size:10px;margin-left:4px;">AI自动判断</span></label>
+        <select class="form-input" id="article-sentiment">
+          <option value="-1">🔴 负面（看空/警示）</option>
+          <option value="0" selected>⚪ 中性（客观分析）</option>
+          <option value="1">🟢 正面（看多/乐观）</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">标签 <span style="color:var(--accent2);font-size:10px;margin-left:4px;">AI自动提取</span></label>
+        <input class="form-input" id="article-tags" placeholder="AI分析后自动填入，也可手动修改，用逗号分隔" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">关联基金/股票</label>
+        <input class="form-input" id="article-related" placeholder="关联的基金或股票名称" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-article">取消</button>
+      <button class="btn btn-primary" id="btn-save-article">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 文章详情 Modal -->
+<div class="modal-overlay" id="modal-article-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="detail-article-title">文章详情</div>
+      <button class="modal-close" data-close="modal-article-detail">✕</button>
+    </div>
+    <div id="detail-article-content"></div>
+  </div>
+</div>
+
+<!-- 验证观点 Modal -->
+<div class="modal-overlay" id="modal-verification">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🎯 验证观点</div>
+      <button class="modal-close" data-close="modal-verification">✕</button>
+    </div>
+    <div class="alert-box" id="verification-hint">
+      💡 回顾文章的核心观点，结合后续行情走势，判断观点是否得到验证。
+    </div>
+    <div class="form-grid">
+      <div class="form-group full" id="verification-original-point"></div>
+      <div class="form-group full">
+        <label class="form-label">验证结果 <span class="required">*</span></label>
+        <select class="form-input" id="verification-result">
+          <option value="">请选择</option>
+          <option value="correct">✅ 观点正确（得到验证）</option>
+          <option value="wrong">❌ 观点错误（被证伪）</option>
+          <option value="partial">⚠️ 部分验证（有待观察）</option>
+          <option value="pending">⏳ 待验证（时间未到）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">验证日期</label>
+        <input class="form-input" type="date" id="verification-date" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">验证说明</label>
+        <textarea class="form-input" id="verification-notes" rows="3" placeholder="描述验证过程和依据"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-verification">取消</button>
+      <button class="btn btn-primary" id="btn-save-verification">保存验证</button>
+    </div>
+  </div>
+</div>
+
+<!-- 统计 Modal -->
+<div class="modal-overlay" id="modal-news-stats">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">📊 资讯统计概览</div>
+      <button class="modal-close" data-close="modal-news-stats">✕</button>
+    </div>
+    <div id="news-stats-content"></div>
+  </div>
+</div>
+
+<!-- ========== KNOWLEDGE MODALS ========== -->
+
+<!-- 新增/编辑知识 Modal -->
+<div class="modal-overlay" id="modal-knowledge">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-knowledge-title">📝 新增知识</div>
+      <button class="modal-close" data-close="modal-knowledge">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label class="form-label">知识标题 <span class="required">*</span></label>
+        <input class="form-input" id="knowledge-title" placeholder="如：PEG估值法的应用技巧" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">分类 <span class="required">*</span></label>
+        <select class="form-input" id="knowledge-category">
+          <option value="投资理念">💡 投资理念</option>
+          <option value="技术分析">📊 技术分析</option>
+          <option value="宏观经济">🌍 宏观经济</option>
+          <option value="心得体会">💭 心得体会</option>
+          <option value="行业研究">🏭 行业研究</option>
+          <option value="其他">📌 其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">来源</label>
+        <input class="form-input" id="knowledge-source" placeholder="如：《巴菲特致股东信》、某篇文章、自己的思考" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">知识内容 <span class="required">*</span></label>
+        <textarea class="form-input" id="knowledge-content" rows="6" placeholder="详细记录你学到的知识、想法或心得..."></textarea>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">标签</label>
+        <input class="form-input" id="knowledge-tags" placeholder="用逗号分隔，如：价值投资,护城河,估值" />
+      </div>
+      <div class="form-group full">
+        <label class="form-label">关联标的</label>
+        <input class="form-input" id="knowledge-related-symbols" placeholder="关联的股票代码或基金名称，如：贵州茅台,永利6号" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-knowledge">取消</button>
+      <button class="btn btn-primary" id="btn-save-knowledge">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 知识详情 Modal -->
+<div class="modal-overlay" id="modal-knowledge-detail">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title" id="detail-knowledge-title">知识详情</div>
+      <button class="modal-close" data-close="modal-knowledge-detail">✕</button>
+    </div>
+    <div id="detail-knowledge-content"></div>
+  </div>
+</div>
+
+<!-- AI分析 Modal -->
+<div class="modal-overlay" id="modal-knowledge-analysis">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title">🤖 知识AI分析</div>
+      <button class="modal-close" data-close="modal-knowledge-analysis">✕</button>
+    </div>
+    <div class="alert-box">
+      💡 AI将分析知识库内容，生成摘要、提取要点、发现关联，并给出升级建议。
+    </div>
+    <div id="knowledge-analysis-content" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" data-close="modal-knowledge-analysis">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== DETAIL PANEL ========== -->
+<div class="detail-overlay" id="detail-overlay"></div>
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <div>
+      <div style="font-size:16px; font-weight:700; margin-bottom:4px;" id="detail-fund-name">基金详情</div>
+      <div style="font-size:12px; color:var(--text3);" id="detail-fund-meta"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="btn btn-secondary btn-sm" id="btn-detail-edit" data-action="edit-fund">编辑</button>
+      <button class="btn btn-danger btn-sm" id="btn-detail-delete" data-action="delete-fund">删除</button>
+      <button class="detail-close" id="btn-detail-close">✕</button>
+    </div>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+
+
+
+<!-- JS Modules -->
+<script src="js/store.js"></script>
+<!-- 导出选择模态框 -->
+<div class="modal-overlay" id="modal-export-select">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">选择导出数据</div>
+      <button class="modal-close" onclick="closeModal('modal-export-select')">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">勾选要导出的数据类别，可导出到不同文件。</p>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="export-cb" value="funds" checked> <span>📈 基金数据（含净值历史、批次、分红）</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="export-cb" value="articles"> <span>📰 资讯文章</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="export-cb" value="stocks"> <span>📊 股票持仓</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="export-cb" value="futures"> <span>🔮 期货持仓</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;">
+        <input type="checkbox" class="export-cb" value="knowledgeBase"> <span>🧠 投资知识库</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-export-select')">取消</button>
+      <button class="btn btn-primary" onclick="doSelectiveExport()">导出选中</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入选择模态框 -->
+<div class="modal-overlay" id="modal-import-select">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">选择导入数据</div>
+      <button class="modal-close" onclick="closeModal('modal-import-select')">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;">勾选要导入的数据类别（文件中的数据将合并到当前数据，不会覆盖未勾选的类别）。</p>
+      <div id="import-file-name" style="font-size:12px;color:var(--accent);margin-bottom:12px;"></div>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="import-cb" value="funds" checked> <span>📈 基金数据（含净值历史、批次、分红）</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="import-cb" value="articles"> <span>📰 资讯文章</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="import-cb" value="stocks"> <span>📊 股票持仓</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border);">
+        <input type="checkbox" class="import-cb" value="futures"> <span>🔮 期货持仓</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;">
+        <input type="checkbox" class="import-cb" value="knowledgeBase"> <span>🧠 投资知识库</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-import-select')">取消</button>
+      <button class="btn btn-primary" onclick="doSelectiveImport()">导入选中（合并）</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/utils.js"></script>
+<script src="js/utils-extra.js"></script>
+<script src="js/fund/calc.js"></script>
+<script src="js/fund/render.js"></script>
+<script src="js/fund/modal.js"></script>
+<script src="js/stock/stock.js"></script>
+<script src="js/futures/futures.js"></script>
+<script src="js/attribution.js"></script>
+<script src="js/attribution-contrib.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/vote.js"></script>
+<script src="js/news.js"></script>
+<script src="js/knowledge.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/events.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
