@@ -456,6 +456,16 @@ function generateNavFitAnalysis(selFundStats, benchFund) {
     }
     parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">3. 收益风险比：</b>夏普比率 ${sharpe != null ? sharpe.toFixed(2) : '--'}，${ratioComment}。卡玛比率 ${calmar > 0 ? calmar.toFixed(2) : '--'}${calmar > 1 ? '，说明每承受1%回撤可获得超过1%的年化收益' : calmar > 0 ? '，收益与回撤的比例一般' : ''}。</div>`);
 
+    // 索提诺 vs 夏普对比
+    if (p.sortino != null && sharpe != null) {
+      let sortinoComment = '';
+      if (p.sortino > sharpe * 1.2) sortinoComment = '下行波动控制明显优于整体波动，尾部风险管理优秀';
+      else if (p.sortino > sharpe) sortinoComment = '下行波动控制优于整体波动，尾部风险较小';
+      else if (p.sortino < sharpe * 0.8) sortinoComment = '下行波动偏大，需关注极端行情下的应对';
+      else sortinoComment = '下行波动与整体波动基本一致';
+      parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">3b. 下行风险（索提诺）：</b>索提诺比率 ${(p.sortino * 100).toFixed(2)}%，\${sortinoComment}。（夏普 \${(sharpe * 100).toFixed(2)}%）</div>`);
+    }
+
     // 收益质量
     const posRate = (p.positiveRate || 0) * 100;
     const plRatio = p.profitLossRatio;
@@ -472,17 +482,44 @@ function generateNavFitAnalysis(selFundStats, benchFund) {
       parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">5. 尾部风险：</b>95% VaR 为 <span style="color:var(--green);font-weight:700;">${(var95 * 100).toFixed(2)}%</span>，意味着在95%的交易日里，单日损失不会超过此数值。${var95 < -0.05 ? '极端波动风险较高，建议控制仓位。' : '尾部风险可控。'}</div>`);
     }
 
-    // 综合评价
-    let overall = '';
-    if (sharpe != null && sharpe > 1 && maxDD > -0.15 && annRet > 0.10) {
-      overall = '综合评价：该基金<span style="color:var(--red);font-weight:700;">业绩优秀、风险可控</span>，是一只值得重点关注的标的。';
-    } else if (sharpe != null && sharpe > 0.5 && annRet > 0.05) {
-      overall = '综合评价：该基金<span style="color:var(--yellow);font-weight:700;">表现稳健</span>，可作为组合中的核心配置。';
-    } else if (annRet < 0 || (sharpe != null && sharpe < 0)) {
-      overall = '综合评价：该基金<span style="color:var(--green);font-weight:700;">当前处于亏损状态</span>，建议审慎评估是否继续持有，或考虑止损。';
-    } else {
-      overall = '综合评价：该基金<span style="color:var(--text2);font-weight:700;">表现中规中矩</span>，可继续观察，暂不增配。';
+    // 多维评级 + 综合评价
+    const getRating = (val, sTh, aTh, bTh, cTh) => {
+      if (val == null) return 'C';
+      if (val >= sTh) return 'S';
+      if (val >= aTh) return 'A';
+      if (val >= bTh) return 'B';
+      if (val >= cTh) return 'C';
+      return 'D';
+    };
+    const rR = getRating(annRet, 0.20, 0.10, 0.03, 0);
+    const rkR = getRating(-maxDD, 0.05, 0.10, 0.15, 0.20);
+    const spR = getRating(sharpe, 2, 1, 0.5, 0);
+    const posRateRaw = (p.positiveRate || 0) * 100;
+    const stR = getRating(posRateRaw, 55, 50, 45, 30);
+    const ratingColor = { S: "#10b981", A: "#3b82f6", B: "#f59e0b", C: "#6b7280", D: "#ef4444" };
+    const badge = (lbl, r) => `<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${ratingColor[r]};margin-right:5px;">${lbl}:${r}</span>`;
+    parts.push(`<div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px;font-size:13px;">
+      <div style="margin-bottom:8px;font-weight:700;color:var(--text);">📊 多维评级</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        ${badge("收益力", rR)}${badge("抗风险", rkR)}${badge("性价比", spR)}${badge("稳定性", stR)}
+      </div>
+    </div>`);
+
+    // 持有建议（根据基金状态）
+    let holdSuggestion = '';
+    const fStatus = s.f.status || 'holding';
+    if (fStatus === 'holding') {
+      if (sharpe != null && sharpe > 1 && annRet > 0.10 && maxDD > -0.15) holdSuggestion = '🟢 <b>建议继续持有</b>，业绩优秀、风险可控。';
+      else if (annRet < 0 || (sharpe != null && sharpe < 0)) holdSuggestion = '🔴 <b>建议审慎评估</b>，当前亏损或风险补偿不足。';
+      else holdSuggestion = '🟡 <b>可继续观察</b>，暂不加仓。';
+    } else if (fStatus === 'tracking') {
+      if (sharpe != null && sharpe > 1.5 && maxDD > -0.10) holdSuggestion = '🟢 <b>可择机建仓</b>，性价比优秀、回撤可控。';
+      else if (annRet < 0 || maxDD < -0.20) holdSuggestion = '🔴 <b>暂不建议入手</b>，业绩或风险特征不佳。';
+      else holdSuggestion = '🟡 <b>继续观望</b>，等待更好入场时机。';
+    } else if (fStatus === 'exited') {
+      holdSuggestion = '⚪ <b>该基金已退出</b>，可关注未来是否重新具备投资价值。';
     }
+    parts.push(`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:13px;">${holdSuggestion}</div>`);
     parts.push(`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;">${overall}</div>`);
   }
 
