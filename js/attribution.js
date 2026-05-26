@@ -832,7 +832,7 @@ function renderPortfolioSim() {
     </div>
     <div class="card" style="text-align:center;padding:14px;">
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">单利年化</div>
-      <div style="font-size:18px;font-weight:700;color:${annualizedSimple >= 0 ? 'var(--red)' : 'var(--green)'};">${annualizedSimple >= 0 ? '+' : ''}${(annualizedSimple * 100).toFixed(1)}%</div>
+      <div style="font-size:28px;font-weight:700;color:${annualizedSimple >= 0 ? 'var(--red)' : 'var(--green)'};">${annualizedSimple >= 0 ? '+' : ''}${(annualizedSimple * 100).toFixed(1)}%</div>
     </div>
     <div class="card" style="text-align:center;padding:14px;">
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">最大回撤</div>
@@ -1075,7 +1075,7 @@ function renderNavFit() {
     return `
     <td>${fmtRet(p.totalReturn)}</td>
     <td>${fmtRet(p.annualizedReturn)}</td>
-    <td style="font-size:10px;color:var(--text3);">${p.annualizedReturnSimple != null ? fmtRet(p.annualizedReturnSimple) : '--'}</td>
+    <td style="font-size:13px;color:var(--text3);">${p.annualizedReturnSimple != null ? fmtRet(p.annualizedReturnSimple) : '--'}</td>
     <td>${p.annualizedVol != null ? fmtVal(p.annualizedVol * 100, 1) + '%' : '--'}</td>
     <td style="color:${p.maxDrawdown >= 0 ? 'var(--red)' : 'var(--green)'};font-weight:600;">${fmtVal(p.maxDrawdown * 100, 1)}%</td>
     <td style="color:${p.sharpe == null ? 'var(--text3)' : (p.sharpe >= 0 ? 'var(--red)' : 'var(--green)')};font-weight:600;">${fmtVal(p.sharpe, 2)}</td>
