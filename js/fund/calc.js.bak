@@ -176,30 +176,6 @@ function calcPerformance(fund, startDate = null, endDate = null, benchmarkNavs =
     }
   });
 
-  // 5b. 累计回撤 ≥5% 的次数（独立回撤段数）
-  let dd5Count = 0;
-  {
-    let currPeak = cumulativeNavs[0].cumNav;
-    let maxDDPct = 0; // 当前回撤段的最大回撤幅度（正数）
-    let inDD = false;
-    cumulativeNavs.forEach(p => {
-      if (p.cumNav >= currPeak) {
-        // 创新高，回撤段结束
-        if (inDD && maxDDPct >= 0.05) dd5Count++;
-        currPeak = p.cumNav;
-        maxDDPct = 0;
-        inDD = false;
-      } else {
-        // 处于回撤中
-        const ddPct = (currPeak - p.cumNav) / currPeak;
-        maxDDPct = Math.max(maxDDPct, ddPct);
-        inDD = true;
-      }
-    });
-    // 数据结束时若仍在回撤中，也要结算
-    if (inDD && maxDDPct >= 0.05) dd5Count++;
-  }
-
   // 计算最大回撤修复时间：从底部日期找到之后首次净值 >= 峰值净值的日期
   let ddRecoveryDays = null;
   if (maxDrawdown < 0) {
@@ -305,7 +281,6 @@ function calcPerformance(fund, startDate = null, endDate = null, benchmarkNavs =
     ddRecoveryDays,
     maxWinDays,
     maxLoseDays,
-    dd5Count,
     var95,
     navCount: n,
     startDate: navs[0].date,
@@ -467,7 +442,7 @@ function generateNavFitAnalysis(selFundStats, benchFund) {
     else if (maxDD > -0.10 && vol && vol < 0.15) riskComment = '风险控制较好，回撤在可接受范围';
     else if (maxDD > -0.15) riskComment = '风险适中，需有一定承受能力';
     else riskComment = '风险较高，波动剧烈，需密切监控';
-    parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">2. 风险特征：</b>最大回撤 <span style="color:var(--green);font-weight:700;">${(maxDD * 100).toFixed(1)}%</span>，年化波动率 ${vol != null ? (vol * 100).toFixed(1) + '%' : '--'}，${riskComment}。${p.ddRecoveryDays != null ? `回撤修复耗时${p.ddRecoveryDays}天。` : ''}累计回撤≥5%共 <b>${p.dd5Count || 0}次</b>。</div>`);
+    parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">2. 风险特征：</b>最大回撤 <span style="color:var(--green);font-weight:700;">${(maxDD * 100).toFixed(1)}%</span>，年化波动率 ${vol != null ? (vol * 100).toFixed(1) + '%' : '--'}，${riskComment}。${p.ddRecoveryDays != null ? `回撤修复耗时${p.ddRecoveryDays}天。` : ''}</div>`);
 
     // 收益风险比
     let ratioComment = '';
@@ -497,16 +472,6 @@ function generateNavFitAnalysis(selFundStats, benchFund) {
       parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">5. 尾部风险：</b>95% VaR 为 <span style="color:var(--green);font-weight:700;">${(var95 * 100).toFixed(2)}%</span>，意味着在95%的交易日里，单日损失不会超过此数值。${var95 < -0.05 ? '极端波动风险较高，建议控制仓位。' : '尾部风险可控。'}</div>`);
     }
 
-    // 6. 下行风险（索提诺）
-    if (p.sortino != null && sharpe != null) {
-      let sc = "";
-      if (p.sortino > sharpe * 1.2) sc = "下行波动控制明显优于整体波动，尾部风险管理优秀";
-      else if (p.sortino > sharpe) sc = "下行波动控制优于整体波动，尾部风险较小";
-      else if (p.sortino < sharpe * 0.8) sc = "下行波动偏大，需关注极端行情下的应对";
-      else sc = "下行波动与整体波动基本一致";
-      parts.push(`<div style="margin-bottom:8px;"><b style="color:var(--text);">6. 下行风险（索提诺）：</b>索提诺比率 ${p.sortino.toFixed(2)}，${sc}。（夏普 ${sharpe.toFixed(2)}）</div>`);
-    }
-
     // 综合评价
     let overall = '';
     if (sharpe != null && sharpe > 1 && maxDD > -0.15 && annRet > 0.10) {
@@ -519,54 +484,6 @@ function generateNavFitAnalysis(selFundStats, benchFund) {
       overall = '综合评价：该基金<span style="color:var(--text2);font-weight:700;">表现中规中矩</span>，可继续观察，暂不增配。';
     }
     parts.push(`<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;">${overall}</div>`);
-    
-    // ② 多维评级
-    const __rating = (val, sT, aT, bT, cT) => {
-      if (val == null) return "C";
-      if (val >= sT) return "S";
-      if (val >= aT) return "A";
-      if (val >= bT) return "B";
-      if (val >= cT) return "C";
-      return "D";
-    };
-    const _rR = __rating(annRet, 0.20, 0.10, 0.03, 0);
-    // 抗风险：回撤越小越好，反向评级
-    const _rkR = (() => {
-      const md = -maxDD;
-      if (md == null) return "C";
-      if (md <= 0.05) return "S";
-      if (md <= 0.10) return "A";
-      if (md <= 0.15) return "B";
-      if (md <= 0.20) return "C";
-      return "D";
-    })();
-    const _spR = __rating(sharpe, 2, 1, 0.5, 0);
-    const _stR = __rating((p.positiveRate||0)*100, 55, 50, 45, 30);
-    const _rCol = { S:"#10b981", A:"#3b82f6", B:"#f59e0b", C:"#6b7280", D:"#ef4444" };
-    parts.push(`<div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px;font-size:13px;">
-      <div style="margin-bottom:8px;font-weight:700;color:var(--text);">多维评级</div>
-      <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_rR]};margin-right:5px;">收益力:${_rR}</span>
-      <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_rkR]};margin-right:5px;">抗风险:${_rkR}</span>
-      <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_spR]};margin-right:5px;">性价比:${_spR}</span>
-      <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_stR]}">稳定性:${_stR}</span>
-    </div>`);
-    
-    // ③ 持有建议（根据基金状态）
-    let _hSug = "";
-    const _fSt = s.f.status || "holding";
-    if (_fSt === "holding") {
-      if (sharpe != null && sharpe > 1 && annRet > 0.10 && maxDD > -0.15) _hSug = "建议继续持有，业绩优秀、风险可控。";
-      else if (annRet < 0 || (sharpe != null && sharpe < 0)) _hSug = "建议审慎评估，当前亏损或风险补偿不足。";
-      else _hSug = "可继续观察，暂不加仓。";
-    } else if (_fSt === "tracking") {
-      if (sharpe != null && sharpe > 1.5 && maxDD > -0.10) _hSug = "可择机建仓，性价比优秀、回撤可控。";
-      else if (annRet < 0 || maxDD < -0.20) _hSug = "暂不建议入手，业绩或风险特征不佳。";
-      else _hSug = "继续观望，等待更好入场时机。";
-    } else if (_fSt === "exited") {
-      _hSug = "该基金已退出，可关注未来是否重新具备投资价值。";
-    }
-    parts.push(`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:13px;">${_hSug}</div>`);
-    
   }
 
   // ===== 3. 多只基金横向对比 =====

@@ -1078,6 +1078,7 @@ function renderNavFit() {
     <td style="font-size:13px;color:var(--text3);">${p.annualizedReturnSimple != null ? fmtRet(p.annualizedReturnSimple) : '--'}</td>
     <td>${p.annualizedVol != null ? fmtVal(p.annualizedVol * 100, 1) + '%' : '--'}</td>
     <td style="color:${p.maxDrawdown >= 0 ? 'var(--red)' : 'var(--green)'};font-weight:600;">${fmtVal(p.maxDrawdown * 100, 1)}%</td>
+    <td style="color:var(--text2);font-weight:600;">${p.dd5Count != null ? p.dd5Count + '次' : '--'}</td>
     <td style="color:${p.sharpe == null ? 'var(--text3)' : (p.sharpe >= 0 ? 'var(--red)' : 'var(--green)')};font-weight:600;">${fmtVal(p.sharpe, 2)}</td>
     <td style="color:${p.calmar >= 0 ? 'var(--red)' : 'var(--green)'};font-weight:600;">${fmtVal(p.calmar, 2)}</td>
     <td style="color:${p.infoRatio == null ? 'var(--text3)' : (p.infoRatio >= 0 ? 'var(--red)' : 'var(--green)')};font-weight:600;">${fmtVal(p.infoRatio, 2)}</td>
@@ -1155,7 +1156,7 @@ function renderNavFit() {
       <div style="overflow-x:auto;">
       <table style="min-width:900px;">
         <thead><tr>
-          <th>基金</th><th>净值<br>点数</th><th>区间<br>收益率</th><th>复利<br>年化</th><th>单利<br>年化</th><th>年化<br>波动率</th><th>最大<br>回撤</th><th>夏普<br>比率</th><th>卡玛<br>比率</th><th>信息<br>比率</th><th>正收益<br>占比</th><th>索提诺<br>比率</th><th>盈亏比</th><th>回撤<br>修复</th><th>连盈/连亏<br>(天数)</th><th>95%<br>VaR</th><th>Omega<br>比率</th><th>状态</th>
+          <th>基金</th><th>净值<br>点数</th><th>区间<br>收益率</th><th>复利<br>年化</th><th>单利<br>年化</th><th>年化<br>波动率</th><th>最大<br>回撤</th><th>回撤≥5%<br>次数</th><th>夏普<br>比率</th><th>卡玛<br>比率</th><th>信息<br>比率</th><th>正收益<br>占比</th><th>索提诺<br>比率</th><th>盈亏比</th><th>回撤<br>修复</th><th>连盈/连亏<br>(天数)</th><th>95%<br>VaR</th><th>Omega<br>比率</th><th>状态</th>
         </tr></thead>
         <tbody>
           ${selFundStats.map(s => `<tr>

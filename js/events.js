@@ -179,6 +179,9 @@ document.addEventListener('click', function(e) {
   if (target.id === 'btn-save-nav') { saveNav(); return; }
   if (target.id === 'btn-save-dividend') { saveDividend(); return; }
   if (target.id === 'btn-save-nav-history') { saveNavHistory(); return; }
+  if (target.id === 'btn-batch-nav') { openBatchNav(); return; }
+  if (target.id === 'btn-confirm-batch-nav') { confirmBatchNav(); return; }
+  if (target.id === 'btn-cancel-batch-nav') { closeModal('modal-batch-nav'); return; }
   if (target.id === 'btn-save-edit-nav') { saveEditedNavHistory(); return; }
   if (target.id === 'btn-clear-nav-history') { clearNavHistory(); return; }
   if (target.id === 'btn-confirm-exit-batch') { saveExitBatch(); return; }
@@ -257,6 +260,29 @@ document.addEventListener('click', function(e) {
   // 录入文章按钮
   if (target.id === 'btn-add-article' || target.closest('#btn-add-article')) {
     openAddArticle();
+    return;
+  }
+
+  // 批量录入净值 - tab 切换
+  const batchNavTab = target.closest('#batch-nav-tab .tab.mini');
+  if (batchNavTab) {
+    document.querySelectorAll('#batch-nav-tab .tab.mini').forEach(t => t.classList.remove('active'));
+    batchNavTab.classList.add('active');
+    renderBatchNavList();
+    return;
+  }
+
+  // 批量录入净值 - 全选/取消
+  if (target.id === 'batch-nav-select-all') {
+    const checked = target.checked;
+    document.querySelectorAll('#batch-nav-list .batch-nav-cb').forEach(el => el.checked = checked);
+    return;
+  }
+
+  // 批量录入净值 - 单条勾选联动全选
+  if (target.classList.contains('batch-nav-cb')) {
+    const all = document.querySelectorAll('#batch-nav-list .batch-nav-cb');
+    document.getElementById('batch-nav-select-all').checked = [...all].every(el => el.checked);
     return;
   }
 

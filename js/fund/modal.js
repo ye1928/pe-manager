@@ -889,3 +889,126 @@ function updateDivPreview() {
   document.getElementById('div-preview').style.display = 'block';
 }
 
+// ========================================
+// 批量录入净值
+// ========================================
+let batchNavCurrentTab = 'all';
+
+function openBatchNav() {
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById('batch-nav-date').value = today;
+  batchNavCurrentTab = 'holding';
+  document.querySelectorAll('#batch-nav-tab .tab.mini').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === 'holding');
+  });
+  renderBatchNavList();
+  document.getElementById('modal-batch-nav').classList.add('open');
+}
+
+function renderBatchNavList() {
+  const date = document.getElementById('batch-nav-date').value;
+  const list = document.getElementById('batch-nav-list');
+  if (!list) return;
+
+  const filtered = batchNavCurrentTab === 'all'
+    ? funds
+    : funds.filter(f => f.status === batchNavCurrentTab);
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">该分类下暂无基金</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(f => {
+    const lastNav = (f.navHistory || [])
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-1)[0];
+    const lastUnit = lastNav ? lastNav.nav : null;
+    const lastCum = lastNav && lastNav.cumNav != null ? lastNav.cumNav : lastUnit;
+    const displayUnit = lastUnit != null ? lastUnit.toFixed(4) : '--';
+    const displayCum = lastCum != null ? lastCum.toFixed(4) : '--';
+    const checked = f.status === 'holding' ? 'checked' : '';
+    return `<div style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <input type="checkbox" class="batch-nav-cb" data-fund-id="${f.id}" ${checked}>
+        <span style="width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;">${f.name}</span>
+        <span style="color:var(--text3);font-size:11px;">上期：单位${displayUnit} / 累计${displayCum}</span>
+      </div>
+      <div style="display:flex;gap:6px;padding-left:22px;">
+        <input type="number" class="form-input batch-nav-unit" data-fund-id="${f.id}"
+          placeholder="单位净值" step="0.0001" style="width:110px;padding:3px 6px;font-size:12px;">
+        <input type="number" class="form-input batch-nav-cum" data-fund-id="${f.id}"
+          placeholder="累计净值（选填）" step="0.0001" style="width:130px;padding:3px 6px;font-size:12px;">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function confirmBatchNav() {
+  const date = document.getElementById('batch-nav-date').value;
+  if (!date) { alert('请选择日期'); return; }
+
+  let successCount = 0;
+  let skipCount = 0;
+
+  document.querySelectorAll('#batch-nav-list .batch-nav-cb:checked').forEach(cb => {
+    const fundId = cb.dataset.fundId;
+    const fund = funds.find(f => f.id === fundId);
+    if (!fund) return;
+
+    const unitInput = document.querySelector(`.batch-nav-unit[data-fund-id="${fundId}"]`);
+    const cumInput = document.querySelector(`.batch-nav-cum[data-fund-id="${fundId}"]`);
+    const unitVal = unitInput ? parseFloat(unitInput.value) : NaN;
+    const cumVal = cumInput ? parseFloat(cumInput.value) : NaN;
+
+    if ((isNaN(unitVal) && isNaN(cumVal)) || (unitVal <= 0 && cumVal <= 0)) { skipCount++; return; }
+
+    // 和单条录入逻辑一致：优先单位净值，累计净值选填
+    const navValue = isNaN(unitVal) ? cumVal : unitVal;
+    const navType = isNaN(unitVal) ? 'cumulative' : 'unit';
+
+    // 检查该日期是否已有记录
+    const exists = (fund.navHistory || []).find(h => h.date === date);
+    if (exists) { skipCount++; return; }
+
+    // 自动推算累计净值（仅填了单位净值时）
+    let autoCumNav = null;
+    if (!isNaN(unitVal) && isNaN(cumVal)) {
+      const prevRecs = [...(fund.navHistory || [])].sort((a, b) => a.date.localeCompare(b.date)).filter(h => h.date < date);
+      const prevRec = prevRecs.length > 0 ? prevRecs[prevRecs.length - 1] : null;
+      if (prevRec) {
+        const prevUnit = Number(prevRec.nav);
+        const prevCum = prevRec.cumNav != null ? Number(prevRec.cumNav) : prevUnit;
+        autoCumNav = prevCum + (unitVal - prevUnit);
+      }
+    }
+
+    fund.navHistory = fund.navHistory || [];
+    fund.navHistory.push({
+      id: uuid(),
+      date,
+      nav: navValue,
+      type: navType,
+      cumNav: !isNaN(cumVal) ? cumVal : (autoCumNav != null ? autoCumNav : null),
+      note: '批量录入',
+    });
+    fund.navHistory.sort((a, b) => a.date.localeCompare(b.date));
+
+    // 更新最新净值
+    const latest = fund.navHistory[fund.navHistory.length - 1];
+    fund.latestNav = latest.nav;
+    fund.navDate = latest.date;
+    fund.latestCumNav = latest.cumNav != null ? latest.cumNav : latest.nav;
+
+    successCount++;
+  });
+
+  if (successCount > 0) {
+    DB.save('funds_v2', funds);
+    renderPEFund();
+  }
+
+  closeModal('modal-batch-nav');
+  alert(`录入完成！成功 ${successCount} 条${skipCount > 0 ? `，跳过 ${skipCount} 条（无净值或日期重复）` : ''}`);
+}
+

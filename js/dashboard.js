@@ -17,6 +17,9 @@ let currentPage = 'overview';
 let currentPETab = 'holding';
 
 function switchPage(pageId) {
+  // 切换页面时关闭所有弹窗
+  document.querySelectorAll('.modal-overlay.open').forEach(el => el.classList.remove('open'));
+
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelector(`.nav-item[data-page="${pageId}"]`).classList.add('active');
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
@@ -41,6 +44,10 @@ function switchPage(pageId) {
   } else {
     addBtn.style.display = 'none';
   }
+
+  // 控制「批量录入净值」按钮显示
+  const batchNavBtn = document.getElementById('btn-batch-nav');
+  if (batchNavBtn) batchNavBtn.style.display = pageId === 'pe-fund' ? '' : 'none';
 
   if (pageId === 'overview') renderDashboard();
   if (pageId === 'pe-fund') renderPEFund();
