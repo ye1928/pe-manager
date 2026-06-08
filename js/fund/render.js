@@ -14,7 +14,7 @@ function toggleFundGroup(company) {
 
 function renderPEFund() {
   const stats = getPEStats();
-  document.getElementById('stat-fund-count').textContent = stats.count;
+  document.getElementById('stat-fund-count').textContent = stats.holdingCount;
   document.getElementById('stat-total-cost').textContent = fmtWan(stats.totalCost);
   document.getElementById('stat-total-pnl').innerHTML =
     `<span class="${pnlClass(stats.netGain)}">${stats.netGain >= 0 ? '+' : ''}${fmtWan(stats.netGain)}</span>`;
