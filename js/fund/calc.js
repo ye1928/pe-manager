@@ -540,15 +540,29 @@ function generateNavFitAnalysis(selFundStats, benchFund) {
       if (md <= 0.20) return "C";
       return "D";
     })();
-    const _spR = __rating(sharpe, 2, 1, 0.5, 0);
+    const _spR = __rating(p.sortino, 2, 1, 0.5, 0);
     const _stR = __rating((p.positiveRate||0)*100, 55, 50, 45, 30);
     const _rCol = { S:"#10b981", A:"#3b82f6", B:"#f59e0b", C:"#6b7280", D:"#ef4444" };
+    // 超额能力（有基准→信息比率，无基准→卡玛比率）
+    let _exR = null, _exLabel = "";
+    if (p.infoRatio != null) { _exR = p.infoRatio; _exLabel = "信息比率"; }
+    else if (p.calmar != null) { _exR = p.calmar; _exLabel = "卡玛比率"; }
+    let _exRating = null;
+    if (_exR != null) {
+      if (_exLabel === "卡玛比率") {
+        _exRating = __rating(_exR, 2.0, 1.0, 0.5, 0);
+      } else {
+        // 信息比率
+        _exRating = __rating(_exR, 1.0, 0.5, 0.2, 0);
+      }
+    }
     parts.push(`<div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px;font-size:13px;">
       <div style="margin-bottom:8px;font-weight:700;color:var(--text);">多维评级</div>
       <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_rR]};margin-right:5px;">收益力:${_rR}</span>
       <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_rkR]};margin-right:5px;">抗风险:${_rkR}</span>
       <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_spR]};margin-right:5px;">性价比:${_spR}</span>
       <span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_stR]}">稳定性:${_stR}</span>
+      ${_exRating ? `<br><span style="display:inline-block;margin-top:6px;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:700;color:#fff;background:${_rCol[_exRating]};">超额能力(${_exLabel}):${_exRating}</span>` : ''}
     </div>`);
     
     // ③ 持有建议（根据基金状态）
