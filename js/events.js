@@ -268,6 +268,7 @@ document.addEventListener('click', function(e) {
   if (batchNavTab) {
     document.querySelectorAll('#batch-nav-tab .tab.mini').forEach(t => t.classList.remove('active'));
     batchNavTab.classList.add('active');
+    batchNavCurrentTab = batchNavTab.dataset.tab;
     renderBatchNavList();
     return;
   }
