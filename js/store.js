@@ -6,6 +6,35 @@ const DB = {
     try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; }
   },
   save(key, data) {
+    // 保存 funds_v2 前，自动把 fund 层级的 batches/dividends 同步回当前客户
+    if (key === 'funds_v2' && currentCustomerId && Array.isArray(data)) {
+      data.forEach(f => {
+        const cd = f.customers?.[currentCustomerId];
+        if (cd) {
+          cd.batches = f._savedKeep ? (f.batches || []) : (f.batches || []);
+          cd.dividends = f.dividends || [];
+          cd.perfFee = f.perfFee;
+          cd.status = f.status;
+          // 同步后恢复原字段（如果有备份）
+          if (f._savedBatches !== undefined) {
+            f.batches = f._savedBatches;
+            delete f._savedBatches;
+          }
+          if (f._savedDividends !== undefined) {
+            f.dividends = f._savedDividends;
+            delete f._savedDividends;
+          }
+          if (f._savedStatus !== undefined) {
+            f.status = f._savedStatus;
+            delete f._savedStatus;
+          }
+          if (f._savedPerfFee !== undefined) {
+            f.perfFee = f._savedPerfFee;
+            delete f._savedPerfFee;
+          }
+        }
+      });
+    }
     localStorage.setItem(key, JSON.stringify(data));
   }
 };
@@ -68,6 +97,55 @@ let futures = DB.load('futures_v2', []);
 let currentFuturesTab = 'holding';
 
 // ============================================================
+// CUSTOMER DATA（客户账套）
+// ============================================================
+// customers_v1: [{ id, name, note, createdAt }]
+let customers = DB.load('customers_v1', []);
+let currentCustomerId = null;
+
+// ============================================================
+// 数据迁移：现有 fund.batches/dividends → fund.customers
+// ============================================================
+(function migrateFundCustomers() {
+  // 如果已有 customers 记录，说明已迁移
+  if (!customers || customers.length === 0) {
+    // 创建默认客户
+    const defaultId = 'default-' + Date.now();
+    customers = [{ id: defaultId, name: '默认客户', note: '自动创建的默认客户', createdAt: new Date().toISOString() }];
+    DB.save('customers_v1', customers);
+    // 迁移现有基金数据
+    funds.forEach(f => {
+      if (!f.customers) {
+        f.customers = {};
+        f.customers[defaultId] = {
+          batches:   f.batches || [],
+          dividends: f.dividends || [],
+          perfFee:   f.perfFee,
+          status:    f.status || 'holding',
+        };
+      }
+    });
+    DB.save('funds_v2', funds);
+  }
+  // 即使已有客户，也检查每个基金是否有 customers 字段（兼容旧导入数据）
+  funds.forEach(f => {
+    if (!f.customers || Object.keys(f.customers).length === 0) {
+      if (!f.customers) f.customers = {};
+      const firstCid = customers[0]?.id;
+      if (firstCid) {
+        f.customers[firstCid] = {
+          batches:   f.batches || [],
+          dividends: f.dividends || [],
+          perfFee:   f.perfFee,
+          status:    f.status || 'holding',
+        };
+      }
+    }
+  });
+  DB.save('funds_v2', funds);
+})();
+
+// ============================================================
 // DATA EXPORT / IMPORT (选择性导出/导入)
 // ============================================================
 
@@ -92,6 +170,7 @@ function doSelectiveExport() {
   if (selected.stocks)     data.data.stocks      = DB.load('stocks_v2', []);
   if (selected.futures)    data.data.futures     = DB.load('futures_v2', []);
   if (selected.knowledgeBase) data.data.knowledgeBase = DB.load('knowledge_v1', []);
+  if (selected.funds)      data.data.customers   = DB.load('customers_v1', []); // 客户数据随基金一起
 
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
@@ -155,6 +234,7 @@ function doSelectiveImport() {
         stocks: DB.load('stocks_v2', []),
         futures: DB.load('futures_v2', []),
         knowledgeBase: DB.load('knowledge_v1', []),
+        customers: DB.load('customers_v1', []),
         backupTime: new Date().toLocaleString()
       };
       DB.save(backupKey, backupData);
@@ -163,6 +243,7 @@ function doSelectiveImport() {
       // 合并导入（只合并选中的类别）
       if (selected.funds && data.data.funds) {
         mergeById('funds_v2', data.data.funds);
+        if (data.data.customers) mergeById('customers_v1', data.data.customers);
       }
       if (selected.articles && data.data.articles) {
         mergeById('articles_v1', data.data.articles);
@@ -183,6 +264,7 @@ function doSelectiveImport() {
       stocks = DB.load('stocks_v2', []);
       futures = DB.load('futures_v2', []);
       knowledgeBase = DB.load('knowledge_v1', []);
+      customers = DB.load('customers_v1', []);
 
       closeModal('modal-import-select');
       _pendingImportFile = null;
@@ -211,4 +293,39 @@ function mergeById(key, incoming) {
 function cleanupOldBackups(keep) {
   const keys = Object.keys(localStorage).filter(k => k.startsWith('backup_')).sort().reverse();
   keys.slice(keep).forEach(k => localStorage.removeItem(k));
+}
+
+// ============================================================
+// 客户账套辅助函数
+// ============================================================
+
+/** 获取当前选中客户下的基金列表 */
+function getActiveFunds() {
+  if (!currentCustomerId) return funds; // 全部模式
+  return funds.filter(f => f.customers?.[currentCustomerId]);
+}
+
+/** 获取当前客户对某只基金的持仓数据（batches, dividends 等） */
+function getCustomerData(fund) {
+  if (!currentCustomerId) return fund; // 全部模式：返回 fund 本身，兼容旧字段
+  const cd = fund.customers?.[currentCustomerId];
+  if (cd) return cd;
+  return fund; // fallback
+}
+
+/** 获取当前客户对某只基金的占位状态 */
+function getCustomerStatus(fund) {
+  if (!currentCustomerId) return fund.status || 'holding';
+  return fund.customers?.[currentCustomerId]?.status || fund.status || 'holding';
+}
+
+/** 获取当前客户可用的所有基金 status 列表（用于筛选） */
+function getActiveStatuses() {
+  if (!currentCustomerId) return ['holding', 'tracking', 'exited'];
+  const statuses = new Set();
+  funds.forEach(f => {
+    const s = f.customers?.[currentCustomerId]?.status || f.status;
+    if (s) statuses.add(s);
+  });
+  return [...statuses];
 }

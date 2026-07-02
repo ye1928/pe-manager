@@ -1,0 +1,9 @@
+name = "stock-api-worker"
+main = "src/index.js"
+compatibility_date = "2025-06-19"
+
+[vars]
+ALLOWED_ORIGIN = "*"
+
+[observability]
+enabled = false

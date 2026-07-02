@@ -85,7 +85,7 @@ function renderDashboard() {
 
   // 资产配置
   const fundAssets = holdingFunds.reduce((s, f) => {
-    const r = calcFund(f);
+    const r = calcFund(f, currentCustomerId);
     return s + (r.totalCost + r.totalFloating); // 市值 = 本金 + 浮动盈亏
   }, 0);
   const stockAssets = holdingStocks.reduce((s, st) => s + (calcStock(st).currentValue || 0), 0);

@@ -19,7 +19,7 @@ function renderAttribution() {
 
   // 基金
   funds.forEach(f => {
-    const c = calcFund(f);
+    const c = calcFund(f, currentCustomerId);
     totalFundCost += c.totalCost;
     totalFundGain += c.netGain;
     totalFundCount++;
@@ -102,7 +102,7 @@ function renderAttribution() {
 
   // === 图2：盈亏排名（水平条形图）===
   const allEntities = [
-    ...funds.map(f => ({ name: f.name, gain: calcFund(f).netGain, type: '基金' })),
+    ...funds.map(f => ({ name: f.name, gain: calcFund(f, currentCustomerId).netGain, type: '基金' })),
     ...stocks.map(s => ({ name: s.name, gain: calcStock(s).netGain, type: '股票' })),
     ...futures.map(f => ({ name: f.name, gain: calcFutures(f).netGain, type: '期货' })),
   ].sort((a, b) => b.gain - a.gain).slice(0, 10);
@@ -1447,7 +1447,7 @@ function renderPeriodAnalysis() {
     let startDate, endDate, label;
     // 'all' 模式：直接使用 calcFund 的结果，保证与总览口径完全一致
     if (period === '__ALL__') {
-      const c = calcFund(f);
+      const c = calcFund(f, currentCustomerId);
       const batches = f.batches || [];
       const dividends = f.dividends || [];
       // 当年新增投入（所有批次的原始申购金额）
@@ -1574,12 +1574,12 @@ function renderPeriodAnalysis() {
   // ---- 组合级汇总卡片 ----
   // 基金资产（持仓市值 = 本金+浮动盈亏，仅持有中基金，与总览页完全一致）
   const fundAssets = allFunds.filter(f => f.status === 'holding').reduce((s, f) => {
-    const r = calcFund(f);
+    const r = calcFund(f, currentCustomerId);
     return s + r.totalCost + r.totalFloating;
   }, 0);
   // 综合收益（净盈亏，与总览页完全一致）
   const netGainAll = allFunds.reduce((s, f) => {
-    const r = calcFund(f);
+    const r = calcFund(f, currentCustomerId);
     return s + r.netGain;
   }, 0);
 

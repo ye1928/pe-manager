@@ -96,7 +96,7 @@ function renderFuturesList() {
           </div>
         </div>
         ${calc.qty > 0 ? `<div style="font-size:11px;color:${calc.floatGain >= 0 ? 'var(--red)' : 'var(--green)'};">开仓均价 ¥${fmt(calc.avgCost, 2)}</div>` : ''}
-        <div style="display:flex;gap:6px;margin-top:8px;" onclick="event.stopPropagation()">
+        <div style="display:flex;gap:6px;margin-top:8px;">
           <button class="btn btn-success btn-sm" style="flex:1;" data-action="futures-open" data-futures-id="${f.id}">开仓</button>
           <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="futures-close" data-futures-id="${f.id}" ${calc.qty <= 0 ? 'disabled' : ''}>平仓</button>
           <button class="btn btn-danger btn-sm" data-action="futures-delete" data-futures-id="${f.id}">删</button>

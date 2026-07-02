@@ -7,6 +7,7 @@
   initKnowledgePage();
   renderVoteCardsPending();
   updateVoteHistoryCount();
+  refreshCustomerSelect();
 
   // 大师投票按钮
   document.getElementById('btn-run-vote').addEventListener('click', runVote);

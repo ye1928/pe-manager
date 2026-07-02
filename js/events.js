@@ -195,13 +195,29 @@ document.addEventListener('click', function(e) {
   const detailOverlay = target.closest('#detail-overlay');
   if (detailOverlay) { closeDetail(); return; }
 
-  // data-action 处理
+  // data-action 处理（基金 + 股票 + 期货 统一）
   const actionEl = target.closest('[data-action]');
   if (actionEl) {
     const action = actionEl.dataset.action;
     const fundId = actionEl.dataset.fundId;
     const batchId = actionEl.dataset.batchId;
     const divId = actionEl.dataset.divId;
+    const sid = actionEl.dataset.stockId;
+    const fid = actionEl.dataset.futuresId;
+
+    // 股票
+    if (action === 'stock-buy') { openStockTrade(sid, 'buy'); return; }
+    if (action === 'stock-sell') { openStockTrade(sid, 'sell'); return; }
+    if (action === 'stock-delete') { closeDetail(); setTimeout(() => deleteStock(sid), 50); return; }
+    if (action === 'stock-history') { openStockDetailPanel(sid); return; }
+    if (action === 'stock-ai') { analyzeStock(sid); return; }
+    if (action === 'edit-stock') { closeDetail(); setTimeout(() => openEditStock(sid), 100); return; }
+    // 期货
+    if (action === 'futures-open') { openFuturesTrade(fid, 'open'); return; }
+    if (action === 'futures-close') { openFuturesTrade(fid, 'close'); return; }
+    if (action === 'futures-delete') { closeDetail(); setTimeout(() => deleteFutures(fid), 50); return; }
+    if (action === 'futures-history') { openFuturesDetailPanel(fid); return; }
+    if (action === 'edit-futures') { closeDetail(); setTimeout(() => openEditFutures(fid), 100); return; }
 
     switch(action) {
       case 'edit-fund':       openEditFund(fundId); break;
@@ -337,6 +353,27 @@ document.addEventListener('click', function(e) {
     renderNewsView();
     return;
   }
+
+  // ===== 股票 Tab 切换 =====
+  const stockTab = target.closest('[data-stock-tab]');
+  if (stockTab) {
+    currentStockTab = stockTab.dataset.stockTab;
+    document.querySelectorAll('#stock-tabs .tab').forEach(t => t.classList.remove('active'));
+    stockTab.classList.add('active');
+    renderStockList();
+    return;
+  }
+
+  // ===== 期货 Tab 切换 =====
+  const futuresTab = target.closest('[data-futures-tab]');
+  if (futuresTab) {
+    currentFuturesTab = futuresTab.dataset.futuresTab;
+    document.querySelectorAll('#futures-tabs .tab').forEach(t => t.classList.remove('active'));
+    futuresTab.classList.add('active');
+    renderFuturesList();
+    return;
+  }
+
 });
 
 // ============================================================
@@ -554,57 +591,6 @@ document.addEventListener('input', function(e) {
   }
   if (e.target.id === 'futures-trade-price' || e.target.id === 'futures-trade-qty') {
     updateFuturesTradePreview();
-  }
-
-  // ===== 股票 Tab 切换 =====
-  const stockTab = e.target.closest('[data-stock-tab]');
-  if (stockTab) {
-    currentStockTab = stockTab.dataset.stockTab;
-    document.querySelectorAll('#stock-tabs .tab').forEach(t => t.classList.remove('active'));
-    stockTab.classList.add('active');
-    renderStockList();
-    return;
-  }
-
-  // ===== 期货 Tab 切换 =====
-  const futuresTab = e.target.closest('[data-futures-tab]');
-  if (futuresTab) {
-    currentFuturesTab = futuresTab.dataset.futuresTab;
-    document.querySelectorAll('#futures-tabs .tab').forEach(t => t.classList.remove('active'));
-    futuresTab.classList.add('active');
-    renderFuturesList();
-    return;
-  }
-
-  // ===== 股票 / 期货 CRUD（合并处理）=====
-  const actEl = e.target.closest('[data-action]');
-  if (actEl) {
-    const action = actEl.dataset.action;
-    const sid = actEl.dataset.stockId;
-    const fid = actEl.dataset.futuresId;
-    if (action === 'stock-buy') { openStockTrade(sid, 'buy'); return; }
-    if (action === 'stock-sell') { openStockTrade(sid, 'sell'); return; }
-    if (action === 'stock-delete') { closeDetail(); setTimeout(() => deleteStock(sid), 50); return; }
-    if (action === 'stock-history') { openStockDetailPanel(sid); return; }
-    if (action === 'edit-stock') { closeDetail(); setTimeout(() => openEditStock(sid), 100); return; }
-    if (action === 'futures-open') { openFuturesTrade(fid, 'open'); return; }
-    if (action === 'futures-close') { openFuturesTrade(fid, 'close'); return; }
-    if (action === 'futures-delete') { closeDetail(); setTimeout(() => deleteFutures(fid), 50); return; }
-    if (action === 'futures-history') { openFuturesDetailPanel(fid); return; }
-    if (action === 'edit-futures') { closeDetail(); setTimeout(() => openEditFutures(fid), 100); return; }
-  }
-
-  // ===== 资讯搜索 =
-  if (e.target.id === 'news-search') {
-    renderNewsView();
-  }
-
-  // URL 快速识别框（输入完成自动识别）
-  if (e.target.id === 'article-url-quick') {
-    const v = e.target.value.trim();
-    if (v.startsWith('http')) {
-      setTimeout(parseArticleUrl, 300);
-    }
   }
 });
 

@@ -712,11 +712,18 @@ function calcBatch(batch, latestNav, dividends, perfFeeRate = 0) {
 /**
  * 计算整只基金汇总
  */
-function calcFund(fund) {
-  const batches = fund.batches || [];
-  const dividends = fund.dividends || [];
+function calcFund(fund, customerId) {
+  let cd;
+  if (customerId) {
+    cd = fund.customers?.[customerId];
+    if (!cd) cd = fund; // fallback
+  } else {
+    cd = fund;
+  }
+  const batches = cd.batches || [];
+  const dividends = cd.dividends || [];
   const latestNav = Number(fund.latestNav) || 0;
-  const perfFeeRate = (Number(fund.perfFee) || 0) / 100;
+  const perfFeeRate = (Number(cd.perfFee ?? fund.perfFee) || 0) / 100;
 
   let totalCost = 0, totalShares = 0;
   let totalFloating = 0, totalDivGain = 0, totalRealized = 0;
@@ -724,14 +731,12 @@ function calcFund(fund) {
 
   batches.forEach(b => {
     const r = calcBatch(b, latestNav, dividends, perfFeeRate);
-    console.log('批次计算:', b.id, '日期:', b.date, 'exitNav:', b.exitNav, 'exitNav!=null:', b.exitNav != null, 'isExited:', r.isExited, '浮动:', r.floatingGain, '分红:', r.divGain, '已实现:', r.realizedGain);
     totalCost += r.costTotal;
     totalShares += r.shares;
     totalFloating += r.floatingGain;
     totalDivGain += r.divGain;
     totalRealized += r.realizedGain;
     totalPerfFee += r.perfFee;
-    // 仅已退出批次产生的业绩报酬（来自资本利得）
     if (r.isExited) totalRealizedPerfFee += r.perfFee;
   });
 

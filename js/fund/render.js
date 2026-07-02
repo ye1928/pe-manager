@@ -23,7 +23,23 @@ function renderPEFund() {
     ` / 已实现 <span class="${pnlClass(stats.totalRealized)}">${stats.totalRealized >= 0 ? '+' : ''}${fmtWan(stats.totalRealized)}</span>`;
 
   const list = document.getElementById('pe-fund-list');
-  const filtered = funds.filter(f => f.status === currentPETab);
+  // 同步客户数据到 fund（使后续读写 fund.batches/fund.dividends 工作透明）
+  if (currentCustomerId) {
+    funds.forEach(f => {
+      const cd = f.customers?.[currentCustomerId];
+      if (cd) {
+        f._savedBatches = f.batches;
+        f._savedDividends = f.dividends;
+        f._savedStatus = f.status;
+        f._savedPerfFee = f.perfFee;
+        f.batches = cd.batches || [];
+        f.dividends = cd.dividends || [];
+        f.status = cd.status || f.status;
+        f.perfFee = cd.perfFee ?? f.perfFee;
+      }
+    });
+  }
+  const filtered = funds.filter(f => getCustomerStatus(f) === currentPETab);
 
   if (filtered.length === 0) {
     list.innerHTML = `<div class="empty-state">
@@ -49,7 +65,7 @@ function renderPEFund() {
   list.innerHTML = groupNames.map(company => {
     const groupFunds = groups[company];
     const isCollapsed = !!fundGroupCollapsed[company];
-    const groupNetGain = groupFunds.reduce((s, f) => s + calcFund(f).netGain, 0);
+    const groupNetGain = groupFunds.reduce((s, f) => s + calcFund(f, currentCustomerId).netGain, 0);
     const groupCount = groupFunds.length;
 
     return `<div class="fund-group" data-company="${company}">
@@ -65,10 +81,10 @@ function renderPEFund() {
       </div>
       <div class="fund-group-body ${isCollapsed ? 'collapsed' : ''}" data-company="${company}">
         ${groupFunds.map(f => {
-          const calc = calcFund(f);
+          const calc = calcFund(f, currentCustomerId);
           const batches = f.batches || [];
           const batchCount = batches.length;
-          const statusTag = f.status === 'holding'
+          const statusTag = (getCustomerStatus(f)) === 'holding'
             ? '<span class="tag tag-blue">持仓中</span>'
             : f.status === 'tracking'
             ? '<span class="tag tag-yellow">跟踪中</span>'
@@ -127,7 +143,7 @@ function getPEStats() {
   const holdingFunds = funds.filter(f => f.status === 'holding');
   let totalCost = 0, totalFloating = 0, totalRealized = 0, totalPerfFee = 0, totalRealizedPerfFee = 0;
   allFunds.forEach(f => {
-    const c = calcFund(f);
+    const c = calcFund(f, currentCustomerId);
     totalCost += c.totalCost;      // 累计投入本金（含已退出基金）
     totalFloating += c.totalFloating; // 浮动盈亏（仅持仓中基金有）
     totalRealized += c.totalRealized; // 已实现盈亏（含退出基金的分红+资本利得）
@@ -199,7 +215,7 @@ function openPnlDetail(type) {
 
   // 按基金拆解
   const fundRows = allFunds.map(f => {
-    const c = calcFund(f);
+    const c = calcFund(f, currentCustomerId);
     const rowPerfFee = type === 'floating' ? c.totalPerfFee
                      : type === 'realized' ? c.totalRealizedPerfFee
                      : c.totalPerfFee;
@@ -388,7 +404,21 @@ function closeDetail() {
 }
 
 function renderFundDetailBody(fund) {
-  const calc = calcFund(fund);
+  // 同步客户数据
+  if (currentCustomerId) {
+    const cd = fund.customers?.[currentCustomerId];
+    if (cd) {
+      fund._savedBatches = fund.batches;
+      fund._savedDividends = fund.dividends;
+      fund._savedStatus = fund.status;
+      fund._savedPerfFee = fund.perfFee;
+      fund.batches = cd.batches || [];
+      fund.dividends = cd.dividends || [];
+      fund.status = cd.status || fund.status;
+      fund.perfFee = cd.perfFee ?? fund.perfFee;
+    }
+  }
+  const calc = calcFund(fund, currentCustomerId);
   const batches = fund.batches || [];
   const dividends = fund.dividends || [];
   const latestNav = Number(fund.latestNav) || 0;
@@ -443,8 +473,8 @@ function renderFundDetailBody(fund) {
       <button class="btn btn-primary btn-sm" data-action="add-batch" data-fund-id="${fund.id}">＋ 新增申购批次</button>
       <button class="btn btn-success btn-sm" data-action="add-dividend" data-fund-id="${fund.id}">＋ 记录分红</button>
       <button class="btn btn-secondary btn-sm" data-action="nav-history" data-fund-id="${fund.id}">📊 净值历史</button>
-      ${fund.status === 'tracking' ? `<button class="btn btn-secondary btn-sm" data-action="to-holding" data-fund-id="${fund.id}">→ 移入持仓</button>` : ''}
-      ${fund.status === 'holding' ? `<button class="btn btn-secondary btn-sm" data-action="to-exited" data-fund-id="${fund.id}">→ 标记退出</button>` : ''}
+      ${getCustomerStatus(fund) === 'tracking' ? `<button class="btn btn-secondary btn-sm" data-action="to-holding" data-fund-id="${fund.id}">→ 移入持仓</button>` : ''}
+      ${getCustomerStatus(fund) === 'holding' ? `<button class="btn btn-secondary btn-sm" data-action="to-exited" data-fund-id="${fund.id}">→ 标记退出</button>` : ''}
     </div>
   `;
 
@@ -712,6 +742,7 @@ function renderStockDetailBody(stock) {
       <button class="btn btn-success btn-sm" data-action="stock-buy" data-stock-id="${stock.id}">📈 买入</button>
       <button class="btn btn-secondary btn-sm" data-action="stock-sell" data-stock-id="${stock.id}" ${calc.qty <= 0 ? 'disabled' : ''}>📉 卖出</button>
       <button class="btn btn-secondary btn-sm" data-action="stock-history" data-stock-id="${stock.id}">📋 交易记录</button>
+      <button class="btn btn-secondary btn-sm" data-action="stock-ai" data-stock-id="${stock.id}" style="background:linear-gradient(135deg, #6366f1, #8b5cf6);color:#fff;border:none;">🧠 AI分析</button>
     </div>
   `;
 

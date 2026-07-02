@@ -81,7 +81,7 @@ function renderStockList() {
           </div>
         </div>
         ${calc.qty > 0 ? `<div style="font-size:11px;color:${floatGain >= 0 ? 'var(--red)' : 'var(--green)'};">${floatGain >= 0 ? '+' : ''}${fmtPct(floatPct)}</div>` : ''}
-        <div style="display:flex;gap:6px;margin-top:8px;" onclick="event.stopPropagation()">
+        <div style="display:flex;gap:6px;margin-top:8px;">
           <button class="btn btn-success btn-sm" style="flex:1;" data-action="stock-buy" data-stock-id="${s.id}">买入</button>
           <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="stock-sell" data-stock-id="${s.id}" ${calc.qty <= 0 ? 'disabled' : ''}>卖出</button>
           <button class="btn btn-danger btn-sm" data-action="stock-delete" data-stock-id="${s.id}">删</button>
