@@ -156,3 +156,12 @@ annualizedVol = √(variance × periodsPerYear)
 2. logReturns 中增加 `!isFinite(r)` 防护
 3. 最终结果 `safeVol = isFinite(vol) && vol >= 0 ? vol : null`
 4. `fmtVal` 增加 `isNaN(v)` 检查；波动率单元格先判 `!= null` 再做乘法
+
+### 2026-07-02 安全规范：API Key 不再硬编码
+- **事件**：GitHub Secret Scanning 拦截推送，因 `worker/local-server.js` 硬编码 DeepSeek API Key。
+- **规范**：
+  - 所有后端/Worker 通过环境变量读取 Key（本地 `process.env.DEEPSEEK_API_KEY`，Cloudflare Worker 用 `env.DEEPSEEK_API_KEY`）。
+  - `.env` 文件必须加入 `.gitignore`，仓库只提交 `.env.example` 模板。
+  - `worker/.wrangler/cache/` 等本地状态目录也必须忽略。
+- **操作**：若历史 commit 已泄露 secret，应使用 `git commit --amend` 或 `git filter-repo` 重写历史后 `push --force-with-lease`。
+- **项目目录**：当前活跃仓库为 `20260425195840-split/`，GitHub 远程为 `ye1928/pe-manager`。
